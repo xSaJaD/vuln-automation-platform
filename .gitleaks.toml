@@ -1,0 +1,19 @@
+# إعداد gitleaks — يمتد على القواعد الافتراضية ويسمح بالقيم النائبة (placeholders).
+title = "IQScan gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "ملفات وأنماط نائبة مسموح بها (ليست أسرارًا حقيقية)"
+paths = [
+  '''\.env\.example$''',
+  '''README\.md$''',
+  '''docs/SECURITY\.md$''',
+]
+regexes = [
+  '''your-api-key''',
+  '''change-me''',
+  '''change-me-in-prod''',
+  '''your-api-key-here''',
+]

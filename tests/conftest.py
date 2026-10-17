@@ -6,9 +6,13 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from api.config import settings
 from api.db import get_db
 from api.main import app
 from api.models.base import Base
+
+# تعطيل تحديد المعدّل أثناء الاختبارات حتى لا يتداخل مع تتابع الطلبات.
+settings.rate_limit_enabled = False
 
 
 @pytest.fixture

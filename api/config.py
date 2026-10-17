@@ -25,5 +25,10 @@ class Settings(BaseSettings):
     strix_budget: str = ""   # حد أقصى لتكلفة LLM لكل تشغيل (اختياري)
     strix_timeout: int = 1800
 
+    # الأمان
+    field_encryption_key: str = ""     # Fernet key لتشفير الحقول الحساسة
+    rate_limit_enabled: bool = True
+    rate_limit_per_minute: int = 300   # لكل IP على الـ API
+
 
 settings = Settings()

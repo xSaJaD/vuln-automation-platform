@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 10.**
+**منفّذ: Phase 0 → Phase 11.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -37,9 +37,12 @@
 - **Phase 9** — **Orchestration**: سلسلة كاملة (`recon → scan → correlate`) بمهمة
   واحدة، **قفل تزامن** (Redis) يمنع تشغيلين متوازيين لنفس البرنامج، وجدولة دورية
   (Celery beat) — recon أسبوعي لكل برنامج نشط.
-- **Phase 10** — **لوحة التحكم (Strix Console)**: واجهة ويب احترافية بموشن جرافيك
+- **Phase 10** — **لوحة التحكم (IQScan)**: واجهة ويب احترافية بموشن جرافيك
   (خط أنابيب متحرّك، رادار recon، مخطط خطورة) يخدمها FastAPI على `/dashboard`،
   تتصل بالـ API مباشرة. افتح `http://localhost:8000/` بعد التشغيل.
+- **Phase 11** — **الأمان وإدارة الأسرار**: تشفير الحقول الحسّاسة (Fernet)،
+  تحديد المعدّل على الـ API، وفحص تسريب الأسرار (gitleaks) + checklist أمني.
+  الأسرار من البيئة فقط. انظر `docs/SECURITY.md`.
 
 المراحل اللاحقة (إشعارات، مرونة، HackerOne API، RBAC…) غير منفّذة بعد.
 
@@ -66,6 +69,8 @@
 | POST | `/correlated/{id}/triage` | تغيير الحالة أو CVSS يدويًا (مُسجَّل) |
 | POST | `/correlated/{id}/report` | توليد مسودة تقرير Markdown (للمؤكَّد فقط) |
 | POST | `/programs/{id}/pipeline` | تشغيل السلسلة الكاملة (recon→scan→correlate) |
+| POST | `/programs/{id}/credentials` | تخزين اعتماد grey-box **مُشفّرًا** |
+| GET | `/programs/{id}/credentials` | قائمة الاعتمادات (بدون السر) |
 
 > تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
 > subfinder/httpx/naabu. الاختبارات لا تحتاجها (تستخدم أدوات وهمية).

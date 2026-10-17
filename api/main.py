@@ -8,13 +8,15 @@ Phase 2: Scope Gatekeeper يحرس إنشاء الأهداف.
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from api import __version__
+from api.config import settings
 from api.db import init_db
 from api.routers import (
     correlate,
+    credentials,
     pipeline,
     programs,
     recon,
@@ -24,6 +26,7 @@ from api.routers import (
     targets,
     triage,
 )
+from api.services.ratelimit import RateLimiter
 
 
 @asynccontextmanager
@@ -49,6 +52,20 @@ app.include_router(correlate.router)
 app.include_router(triage.router)
 app.include_router(report.router)
 app.include_router(pipeline.router)
+app.include_router(credentials.router)
+
+
+_limiter = RateLimiter(settings.rate_limit_per_minute)
+_RL_EXEMPT = {"/", "/dashboard", "/health"}
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    if settings.rate_limit_enabled and request.url.path not in _RL_EXEMPT:
+        host = request.client.host if request.client else "?"
+        if not _limiter.allow(host):
+            return JSONResponse({"detail": "تجاوزت حد الطلبات، حاول بعد قليل"}, status_code=429)
+    return await call_next(request)
 
 
 @app.get("/health", tags=["meta"])
