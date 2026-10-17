@@ -31,6 +31,10 @@ from api.services.ratelimit import RateLimiter
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if settings.log_json:
+        from api.logging_config import setup_logging
+
+        setup_logging(settings.log_level)
     # راحة تطوير — الإنتاج يطبّق المخطط عبر Alembic.
     init_db()
     yield
@@ -56,7 +60,7 @@ app.include_router(credentials.router)
 
 
 _limiter = RateLimiter(settings.rate_limit_per_minute)
-_RL_EXEMPT = {"/", "/dashboard", "/health"}
+_RL_EXEMPT = {"/", "/dashboard", "/health", "/health/workers"}
 
 
 @app.middleware("http")
@@ -71,6 +75,18 @@ async def rate_limit(request: Request, call_next):
 @app.get("/health", tags=["meta"])
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
+
+
+@app.get("/health/workers", tags=["meta"])
+def workers_health():
+    """حالة عمّال Celery (أي العمّال ردّوا على ping)."""
+    try:
+        from workers.celery_app import celery_app
+
+        ping = celery_app.control.inspect(timeout=1).ping() or {}
+    except Exception:
+        ping = {}
+    return {"workers": list(ping.keys()), "count": len(ping)}
 
 
 _DASHBOARD = os.path.join(os.path.dirname(__file__), "static", "index.html")

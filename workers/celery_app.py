@@ -23,7 +23,18 @@ celery_app.conf.beat_schedule = {
         "task": "pipeline.scheduled_recon",
         "schedule": crontab(day_of_week=1, hour=3, minute=0),  # كل اثنين 03:00
     },
+    "monitor-workers": {
+        "task": "monitor.check_workers",
+        "schedule": 300.0,  # كل 5 دقائق — تنبيه إن انقطع العمّال
+    },
 }
+
+# سجلّات JSON منظّمة للعمّال.
+from api.config import settings as _settings  # noqa: E402
+from api.logging_config import setup_logging as _setup_logging  # noqa: E402
+
+if _settings.log_json:
+    _setup_logging(_settings.log_level)
 
 # استيراد المهام حتى تُسجَّل مع التطبيق.
 import workers.tasks  # noqa: E402,F401

@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 12.**
+**منفّذ: Phase 0 → Phase 13.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -46,15 +46,17 @@
 - **Phase 12** — **الاختبار والنشر**: CI (GitHub Actions) يشغّل ruff + pytest +
   gitleaks على كل push/PR، اختبار تكامل end-to-end، و**أمر نشر واحد** (`make deploy`).
   انظر `docs/DEPLOY.md`.
+- **Phase 13** — **تنبيهات ومراقبة**: تنبيهات Webhook (عند finding حرج/عالي،
+  انتهاء فحص، أو انقطاع العمّال)، سجلّات JSON منظّمة، و`GET /health/workers`.
 
-المراحل اللاحقة (إشعارات، مرونة، HackerOne API، RBAC…) غير منفّذة بعد.
+المراحل اللاحقة (مرونة، مزامنة النطاق، HackerOne API، RBAC…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
 |---|---|---|
 | GET | `/` → `/dashboard` | **لوحة التحكم (Strix Console)** |
-| GET | `/health` | فحص صحة |
+| GET | `/health` · `/health/workers` | فحص صحة + حالة العمّال |
 | POST | `/programs` | إنشاء برنامج |
 | GET | `/programs` · `/programs/{id}` | قائمة / تفاصيل |
 | POST | `/programs/{id}/scope` | إضافة asset للنطاق (in/out of scope) |

@@ -60,6 +60,15 @@ def scan_run_nuclei(program_id: int) -> dict:
         sev: dict[str, int] = {}
         for f in findings:
             sev[f.severity] = sev.get(f.severity, 0) + 1
+
+        # تنبيهات (best-effort) عن النتائج المهمّة وانتهاء الفحص.
+        from api.services.notify import get_notifier, notify_findings
+
+        notifier = get_notifier()
+        if notifier:
+            notify_findings(notifier, findings)
+            notifier.scan_done(program.handle, len(findings))
+
         return {
             "scan_run_id": scan_run.id,
             "findings": len(findings),
@@ -116,6 +125,19 @@ def scheduled_recon() -> dict:
         return {"programs": len(programs), "enqueued": enqueued}
     finally:
         db.close()
+
+
+@celery_app.task(name="monitor.check_workers")
+def monitor_check_workers() -> dict:
+    """مراقبة دورية: يُنبّه إن لم يوجد أي worker نشط."""
+    from api.services.notify import evaluate_worker_health, get_notifier
+
+    try:
+        ping = celery_app.control.inspect(timeout=2).ping() or {}
+    except Exception:
+        ping = {}
+    alive = evaluate_worker_health(ping, get_notifier())
+    return {"alive": alive}
 
 
 @celery_app.task(name="strix.run")

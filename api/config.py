@@ -30,5 +30,10 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 300   # لكل IP على الـ API
 
+    # التنبيهات والمراقبة
+    notify_webhook_url: str = ""        # Slack/Telegram/عام
+    notify_min_severity: str = "high"   # أدنى خطورة تُنبِّه
+    log_json: bool = True
+
 
 settings = Settings()

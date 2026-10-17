@@ -68,7 +68,8 @@
 | 10 ✅ | لوحة التحكم (UI) | Strix Console على /dashboard |
 | 11 ✅ | الأمان وإدارة الأسرار | تشفير حقول + rate limit + gitleaks |
 | 12 ✅ | الاختبار والنشر | CI (ruff+pytest+gitleaks) + make deploy |
-| 13+ | إشعارات، مرونة، HackerOne API، RBAC… | انظر الخطة |
+| 13 ✅ | تنبيهات ومراقبة | Webhook + سجلّات JSON + صحة العمّال |
+| 14+ | مرونة، مزامنة النطاق، HackerOne API، RBAC… | انظر الخطة |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).
