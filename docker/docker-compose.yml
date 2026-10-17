@@ -56,5 +56,18 @@ services:
       redis:
         condition: service_healthy
 
+  beat:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    env_file:
+      - ../.env
+    command: ["celery", "-A", "workers.celery_app.celery_app", "beat", "--loglevel=info"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   pgdata:

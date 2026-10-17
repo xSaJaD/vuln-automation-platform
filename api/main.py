@@ -11,7 +11,17 @@ from fastapi import FastAPI
 
 from api import __version__
 from api.db import init_db
-from api.routers import correlate, programs, recon, report, scan, strix, targets, triage
+from api.routers import (
+    correlate,
+    pipeline,
+    programs,
+    recon,
+    report,
+    scan,
+    strix,
+    targets,
+    triage,
+)
 
 
 @asynccontextmanager
@@ -36,6 +46,7 @@ app.include_router(strix.router)
 app.include_router(correlate.router)
 app.include_router(triage.router)
 app.include_router(report.router)
+app.include_router(pipeline.router)
 
 
 @app.get("/health", tags=["meta"])

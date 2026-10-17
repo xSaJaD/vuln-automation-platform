@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 8 (الـ pipeline الأساسي كامل).**
+**منفّذ: Phase 0 → Phase 9.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -34,8 +34,11 @@
   وكل تغيير يُسجَّل في `audit_log` (مين + متى).
 - **Phase 8** — **توليد التقارير**: يملأ مسودة Markdown لكل finding **مؤكَّد**
   (وصف، CVSS، خطوات، أثر، إصلاح، PoC). **مسودة فقط — لا إرسال آلي لـ HackerOne.**
+- **Phase 9** — **Orchestration**: سلسلة كاملة (`recon → scan → correlate`) بمهمة
+  واحدة، **قفل تزامن** (Redis) يمنع تشغيلين متوازيين لنفس البرنامج، وجدولة دورية
+  (Celery beat) — recon أسبوعي لكل برنامج نشط.
 
-المراحل اللاحقة (التنسيق Orchestration، UI، HackerOne API…) غير منفّذة بعد.
+المراحل اللاحقة (UI، إشعارات، HackerOne API، RBAC…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -58,6 +61,7 @@
 | GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة (مع CVSS) |
 | POST | `/correlated/{id}/triage` | تغيير الحالة أو CVSS يدويًا (مُسجَّل) |
 | POST | `/correlated/{id}/report` | توليد مسودة تقرير Markdown (للمؤكَّد فقط) |
+| POST | `/programs/{id}/pipeline` | تشغيل السلسلة الكاملة (recon→scan→correlate) |
 
 > تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
 > subfinder/httpx/naabu. الاختبارات لا تحتاجها (تستخدم أدوات وهمية).

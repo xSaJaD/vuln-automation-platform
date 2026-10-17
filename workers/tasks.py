@@ -69,6 +69,55 @@ def scan_run_nuclei(program_id: int) -> dict:
         db.close()
 
 
+@celery_app.task(name="pipeline.run_full")
+def pipeline_run_full(program_id: int, seed: str) -> dict:
+    """السلسلة الكاملة recon → scan → correlate تحت قفل تزامن."""
+    from api.config import settings
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.locks import redis_lock
+    from workers.orchestration import PipelineLocked, run_pipeline
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        try:
+            correlated = run_pipeline(
+                db, program, seed, DEFAULT_TOOLS, DEFAULT_SCAN_TOOLS,
+                lock=redis_lock(f"pipeline:{program_id}"),
+                output_dir=settings.strix_runs_dir,
+            )
+        except PipelineLocked as exc:
+            return {"status": "skipped", "reason": str(exc)}
+        return {"status": "done", "correlated": len(correlated)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="pipeline.scheduled_recon")
+def scheduled_recon() -> dict:
+    """مهمة دورية (beat): تشغّل الـ pipeline لكل برنامج نشط حسب نطاقه."""
+    from sqlalchemy import select
+
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.orchestration import derive_seeds
+
+    db = SessionLocal()
+    try:
+        programs = list(db.scalars(select(Program).where(Program.active.is_(True))))
+        enqueued = 0
+        for program in programs:
+            for seed in derive_seeds(program):
+                pipeline_run_full.delay(program.id, seed)
+                enqueued += 1
+        return {"programs": len(programs), "enqueued": enqueued}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="strix.run")
 def strix_run(program_id: int, target: str, instruction: str | None = None) -> dict:
     """يشغّل Strix على هدف واحد (بعد فرض النطاق) ويخزّن نتائجه كـ findings."""
