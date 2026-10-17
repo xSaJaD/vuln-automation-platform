@@ -80,6 +80,9 @@ class CorrelatedFindingOut(BaseModel):
     evidence: str | None
     finding_count: int
     status: str
+    cvss_score: float | None
+    cvss_vector: str | None
+    cvss_manual: bool
 
 
 class TargetIn(BaseModel):

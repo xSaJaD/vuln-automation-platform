@@ -3,7 +3,7 @@
 finding واحد لكل (host + endpoint + نوع الثغرة)، يجمع كل المصادر التي رصدته.
 """
 
-from sqlalchemy import Boolean, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Enum, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from api.models.base import Base, TimestampMixin
@@ -28,3 +28,8 @@ class CorrelatedFinding(Base, TimestampMixin):
     evidence: Mapped[str | None] = mapped_column(Text, nullable=True)
     finding_count: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[FindingStatus] = mapped_column(Enum(FindingStatus), default=FindingStatus.needs_review)
+
+    # CVSS (Phase 7) — تلقائي ما لم يُعدّله الباحث يدويًا.
+    cvss_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cvss_vector: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cvss_manual: Mapped[bool] = mapped_column(Boolean, default=False)

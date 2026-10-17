@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from api.models.correlation import CorrelatedFinding
 from api.models.program import Program
 from api.models.scan import Finding, ScanRun
+from api.services.cvss import auto_cvss
 
 SEVERITY_ORDER = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
@@ -69,6 +70,11 @@ def correlate(db: Session, program: Program) -> list[CorrelatedFinding]:
         cf.confirmed_by_strix = confirmed
         cf.evidence = evidence
         cf.finding_count = len(items)
+
+        # CVSS تلقائي ما لم يكن الباحث عدّله يدويًا.
+        if not cf.cvss_manual:
+            cf.cvss_score, cf.cvss_vector = auto_cvss(cf.vuln_type, severity)
+
         results.append(cf)
 
     db.commit()

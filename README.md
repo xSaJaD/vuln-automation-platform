@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 6.**
+**منفّذ: Phase 0 → Phase 7.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -29,8 +29,11 @@
 - **Phase 6** — **Normalize + Correlate**: يدمج الـ findings حسب
   (host + endpoint + نوع الثغرة) في `correlated_findings` موحّدة؛ يجمع المصادر،
   يأخذ أعلى خطورة، ويعلّم `confirmed_by_strix` عند تطابق nuclei + Strix.
+- **Phase 7** — **Triage + CVSS**: حاسبة CVSS v3.1 (تلقائي حسب النوع + تعديل يدوي)،
+  وآلة حالات (`needs_review → confirmed → reported → resolved/duplicate/not_applicable`)،
+  وكل تغيير يُسجَّل في `audit_log` (مين + متى).
 
-المراحل اللاحقة (Triage + CVSS، التقارير…) غير منفّذة بعد.
+المراحل اللاحقة (توليد التقارير، التنسيق، UI…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -50,7 +53,8 @@
 | POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
 | GET | `/programs/{id}/findings` | قائمة النتائج الخام |
 | POST | `/programs/{id}/correlate` | دمج النتائج في findings موحّدة |
-| GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة |
+| GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة (مع CVSS) |
+| POST | `/correlated/{id}/triage` | تغيير الحالة أو CVSS يدويًا (مُسجَّل) |
 
 > تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
 > subfinder/httpx/naabu. الاختبارات لا تحتاجها (تستخدم أدوات وهمية).
