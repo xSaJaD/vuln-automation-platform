@@ -28,7 +28,10 @@ class ScanRun(Base, TimestampMixin):
     __tablename__ = "scan_runs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    target_id: Mapped[int] = mapped_column(ForeignKey("targets.id", ondelete="CASCADE"))
+    program_id: Mapped[int] = mapped_column(ForeignKey("programs.id", ondelete="CASCADE"))
+    target_id: Mapped[int | None] = mapped_column(
+        ForeignKey("targets.id", ondelete="SET NULL"), nullable=True
+    )
     run_name: Mapped[str] = mapped_column(String(200))
     tool: Mapped[str] = mapped_column(String(50))  # nuclei | strix | recon ...
     status: Mapped[ScanStatus] = mapped_column(Enum(ScanStatus), default=ScanStatus.queued)

@@ -15,5 +15,8 @@ class Settings(BaseSettings):
     redis_url: str = ""
     strix_llm: str = ""
 
+    # مجلد حفظ النتائج الخام (JSONL) — يُركّب كـ volume في الـ worker.
+    strix_runs_dir: str = "strix_runs"
+
 
 settings = Settings()

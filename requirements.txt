@@ -6,7 +6,7 @@ pydantic-settings==2.5.2
 
 # DB (تُستخدم فعليًا من Phase 1)
 sqlalchemy==2.0.35
-psycopg[binary]==3.2.2
+psycopg[binary]>=3.2.10,<3.4
 alembic==1.13.3
 
 # Task queue (تُستخدم فعليًا من Phase 3)

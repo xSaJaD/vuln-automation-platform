@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 3.**
+**منفّذ: Phase 0 → Phase 4.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -20,8 +20,11 @@
   `audit_log`. out-of-scope يتغلّب دائمًا؛ ولا تطابق إطلاقًا = رفض.
 - **Phase 3** — **Recon Workers** (Celery): subfinder → httpx → naabu. كل مضيف
   مكتشَف يمر عبر الحارس؛ **المضيفات خارج النطاق تُسجَّل لكن لا تُفحص إطلاقًا**.
+- **Phase 4** — **Scan Workers** (nuclei): يفحص المضيفات الحيّة ضمن النطاق فقط،
+  يُعيد التحقق من النطاق وقت الفحص، ويحوّل النتائج لـ `findings` (`source_tool='nuclei'`,
+  `status=needs_review`). النتائج الخام تُحفظ في `strix_runs/`.
 
-المراحل اللاحقة (Scan بـ nuclei، دمج Strix…) غير منفّذة بعد.
+المراحل اللاحقة (دمج Strix، Normalize/Correlate، التقارير…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -37,6 +40,8 @@
 | GET | `/targets` | قائمة الأهداف |
 | POST | `/programs/{id}/recon` | تشغيل recon (البذرة تمر عبر الحارس أولًا) |
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
+| POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
+| GET | `/programs/{id}/findings` | قائمة النتائج |
 
 > تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
 > subfinder/httpx/naabu. الاختبارات لا تحتاجها (تستخدم أدوات وهمية).
@@ -78,8 +83,10 @@ curl http://localhost:8000/health
 ## التطوير
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn api.main:app --reload
-pytest
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements-dev.txt   # محلي خفيف (بدون psycopg/celery)
+uvicorn api.main:app --reload          # يستخدم SQLite تلقائيًا محليًا
+pytest                                 # المتوقع: 20 passed
 ```
+
+> `requirements.txt` الكامل (مع psycopg/celery) يُستخدم داخل حاويات Docker فقط.

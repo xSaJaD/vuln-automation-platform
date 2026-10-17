@@ -1,0 +1,12 @@
+# مكتبات التطوير والاختبار المحلي فقط (بدون Docker).
+# psycopg و celery و redis يحتاجهم تشغيل الحاويات فقط — مو مطلوبين محليًا،
+# لأن الاختبارات تستخدم SQLite وأدوات وهمية.
+
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pydantic-settings==2.5.2
+sqlalchemy==2.0.35
+alembic==1.13.3
+pytest==8.3.3
+httpx==0.27.2

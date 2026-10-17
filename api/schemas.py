@@ -53,6 +53,20 @@ class HostOut(BaseModel):
     in_scope: bool
 
 
+class FindingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    scan_run_id: int
+    host: str
+    endpoint: str | None
+    vuln_type: str
+    severity: str
+    evidence: str | None
+    source_tool: str
+    confirmed_by_strix: bool
+    status: str
+
+
 class TargetIn(BaseModel):
     program_id: int
     value: str

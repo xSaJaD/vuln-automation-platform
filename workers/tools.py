@@ -53,6 +53,36 @@ def run_httpx(hosts: list[str], timeout: int = DEFAULT_TIMEOUT) -> list[dict]:
     return results
 
 
+def run_nuclei(
+    targets: list[str],
+    extra_args: list[str] | None = None,
+    timeout: int = 1800,
+) -> list[dict]:
+    """يفحص قائمة أهداف بقوالب nuclei ويرجّع النتائج الخام (JSONL مُحلَّل).
+
+    افتراضيًا بمعدّل مهذّب (-rate-limit) احترامًا لحدود البرنامج.
+    """
+    _require("nuclei")
+    if not targets:
+        return []
+    cmd = ["nuclei", "-silent", "-jsonl", "-no-color", "-rate-limit", "50"]
+    if extra_args:
+        cmd += extra_args
+    proc = subprocess.run(
+        cmd, input="\n".join(targets), capture_output=True, text=True, timeout=timeout, check=False
+    )
+    results: list[dict] = []
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            results.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return results
+
+
 def run_naabu(host: str, timeout: int = DEFAULT_TIMEOUT) -> list[int]:
     """يفحص المنافذ (connect scan لتجنّب صلاحيات raw socket)."""
     _require("naabu")
