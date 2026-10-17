@@ -11,15 +11,17 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 + Phase 1 + Phase 2.**
+**منفّذ: Phase 0 → Phase 3.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
-- **Phase 1** — نماذج البيانات الستة (`programs`, `scope_assets`, `targets`,
-  `scan_runs`, `findings`, `audit_log`) + migrations (Alembic) + CRUD للبرامج والنطاق.
+- **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
+  `scan_runs`, `findings`, `audit_log`) + migrations (Alembic) + CRUD.
 - **Phase 2** — ⭐ **Scope Gatekeeper**: كل هدف يمر عبر فحص قبول/رفض ويُسجَّل في
   `audit_log`. out-of-scope يتغلّب دائمًا؛ ولا تطابق إطلاقًا = رفض.
+- **Phase 3** — **Recon Workers** (Celery): subfinder → httpx → naabu. كل مضيف
+  مكتشَف يمر عبر الحارس؛ **المضيفات خارج النطاق تُسجَّل لكن لا تُفحص إطلاقًا**.
 
-المراحل اللاحقة (Recon، Scan، دمج Strix…) غير منفّذة بعد.
+المراحل اللاحقة (Scan بـ nuclei، دمج Strix…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -33,6 +35,11 @@
 | GET | `/programs/{id}/audit` | سجل تدقيق قرارات النطاق |
 | POST | `/targets` | إضافة هدف — **يمر عبر Scope Gatekeeper** |
 | GET | `/targets` | قائمة الأهداف |
+| POST | `/programs/{id}/recon` | تشغيل recon (البذرة تمر عبر الحارس أولًا) |
+| GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
+
+> تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
+> subfinder/httpx/naabu. الاختبارات لا تحتاجها (تستخدم أدوات وهمية).
 
 ### migrations
 

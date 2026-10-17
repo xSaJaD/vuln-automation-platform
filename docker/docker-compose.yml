@@ -38,5 +38,20 @@ services:
       redis:
         condition: service_healthy
 
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.worker
+    env_file:
+      - ../.env
+    volumes:
+      # نتائج الفحص الخام تُحفظ محليًا (strix_runs/) — تُقرأ لاحقًا.
+      - ../strix_runs:/app/strix_runs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   pgdata:

@@ -3,6 +3,7 @@
 from api.models.audit import AuditLog
 from api.models.base import Base
 from api.models.program import AssetKind, Program, ScopeAsset
+from api.models.recon import Host
 from api.models.scan import Finding, FindingStatus, ScanRun, ScanStatus
 from api.models.target import Target, TargetStatus
 
@@ -13,6 +14,7 @@ __all__ = [
     "AssetKind",
     "Target",
     "TargetStatus",
+    "Host",
     "ScanRun",
     "Finding",
     "ScanStatus",

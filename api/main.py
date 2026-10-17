@@ -11,7 +11,7 @@ from fastapi import FastAPI
 
 from api import __version__
 from api.db import init_db
-from api.routers import programs, targets
+from api.routers import programs, recon, targets
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app = FastAPI(
 
 app.include_router(programs.router)
 app.include_router(targets.router)
+app.include_router(recon.router)
 
 
 @app.get("/health", tags=["meta"])

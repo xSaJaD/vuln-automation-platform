@@ -38,6 +38,21 @@ class ScopeAssetOut(BaseModel):
     notes: str | None
 
 
+class HostOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    program_id: int
+    hostname: str
+    ip: str | None
+    is_live: bool
+    http_status: int | None
+    title: str | None
+    tech: str | None
+    open_ports: str | None
+    source: str
+    in_scope: bool
+
+
 class TargetIn(BaseModel):
     program_id: int
     value: str
