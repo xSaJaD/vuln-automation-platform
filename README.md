@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 9.**
+**منفّذ: Phase 0 → Phase 10.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -37,13 +37,17 @@
 - **Phase 9** — **Orchestration**: سلسلة كاملة (`recon → scan → correlate`) بمهمة
   واحدة، **قفل تزامن** (Redis) يمنع تشغيلين متوازيين لنفس البرنامج، وجدولة دورية
   (Celery beat) — recon أسبوعي لكل برنامج نشط.
+- **Phase 10** — **لوحة التحكم (Strix Console)**: واجهة ويب احترافية بموشن جرافيك
+  (خط أنابيب متحرّك، رادار recon، مخطط خطورة) يخدمها FastAPI على `/dashboard`،
+  تتصل بالـ API مباشرة. افتح `http://localhost:8000/` بعد التشغيل.
 
-المراحل اللاحقة (UI، إشعارات، HackerOne API، RBAC…) غير منفّذة بعد.
+المراحل اللاحقة (إشعارات، مرونة، HackerOne API، RBAC…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
 |---|---|---|
+| GET | `/` → `/dashboard` | **لوحة التحكم (Strix Console)** |
 | GET | `/health` | فحص صحة |
 | POST | `/programs` | إنشاء برنامج |
 | GET | `/programs` · `/programs/{id}` | قائمة / تفاصيل |

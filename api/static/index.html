@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="ar">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Strix Console</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  /* ── Strix Console — لوحة عمليات فحص الثغرات ───────────────────────────
+     Layout: شريط علوي ثابت · خط أنابيب متحرك (البطل) · بلاطات إحصاء ·
+             رادار + مخطط خطورة · جدول النتائج · سجل الحارس.
+     تصميم داكن ملتزم (console أمني) — كل الألوان مُعرّفة صراحةً. */
+  :root{
+    --bg:#070b13; --bg-2:#0b1120; --surface:#101829; --surface-2:#16203354;
+    --line:#223049; --line-soft:#1a2438;
+    --fg:#e8eef9; --muted:#8696b3; --faint:#5a6b8a;
+    --accent:#2de2c6; --accent-2:#6a8dff; --accent-glow:#2de2c655;
+    /* خطورة / حالة (منفصلة عن لون التمييز) */
+    --crit:#ff4d6d; --high:#ff8a3d; --med:#ffd23f; --low:#4fd1ff; --info:#8696b3;
+    --ok:#2ee6a6; --deny:#ff4d6d;
+    --r:14px; --r-sm:9px;
+    --f-display:"Chakra Petch","IBM Plex Sans",system-ui,sans-serif;
+    --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --f-mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,monospace;
+    color-scheme:dark;
+  }
+  *,*::before,*::after{box-sizing:border-box}
+  img{max-width:100%}
+  [hidden]{display:none!important}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #12213d55, transparent 60%),
+      radial-gradient(900px 500px at 0% 0%, #1a2b4a44, transparent 55%),
+      var(--bg);
+    color:var(--fg); font-family:var(--f-body); font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; min-height:100%;
+  }
+  /* شبكة خافتة في الخلفية */
+  body::after{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35;
+    background-image:linear-gradient(var(--line-soft) 1px,transparent 1px),
+                     linear-gradient(90deg,var(--line-soft) 1px,transparent 1px);
+    background-size:46px 46px;
+    -webkit-mask-image:radial-gradient(circle at 50% 20%,#000,transparent 75%);
+            mask-image:radial-gradient(circle at 50% 20%,#000,transparent 75%);
+  }
+  .wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left,0px));
+    padding-right:max(16px,env(safe-area-inset-right,0px));
+    padding-block:0 48px}
+
+  /* ── شريط علوي ── */
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
+    z-index:20;background:#0a0f1c}
+  header{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;
+    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    margin:0 calc(-1*max(16px,env(safe-area-inset-left,0px))) 24px;
+    padding:14px max(16px,env(safe-area-inset-left,0px));
+    background:#0a0f1ccc;backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line)}
+  .brand{display:flex;align-items:center;gap:11px;margin-inline-end:auto}
+  .mark{width:34px;height:34px;flex:none;position:relative}
+  .mark svg{display:block;filter:drop-shadow(0 0 6px var(--accent-glow))}
+  .brand h1{font-family:var(--f-display);font-weight:700;font-size:19px;letter-spacing:.14em;
+    margin:0;text-transform:uppercase}
+  .brand .sub{font-family:var(--f-mono);font-size:10.5px;color:var(--accent);letter-spacing:.22em}
+  .status-pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--f-mono);
+    font-size:11px;letter-spacing:.08em;padding:6px 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--surface);color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);
+    box-shadow:0 0 0 0 var(--ok);animation:pulse 2s infinite}
+  .dot.demo{background:var(--med)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #2ee6a688}70%{box-shadow:0 0 0 7px #2ee6a600}100%{box-shadow:0 0 0 0 #2ee6a600}}
+  select{font-family:var(--f-body);font-size:13px;color:var(--fg);background:var(--surface);
+    border:1px solid var(--line);border-radius:var(--r-sm);padding:8px 11px;cursor:pointer}
+  select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── عناوين أقسام ── */
+  .sec-head{display:flex;align-items:baseline;gap:12px;margin:28px 2px 13px}
+  .sec-head h2{font-family:var(--f-display);font-size:13px;font-weight:600;letter-spacing:.2em;
+    text-transform:uppercase;color:var(--fg);margin:0}
+  .sec-head .line{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+  .sec-head .tag{font-family:var(--f-mono);font-size:10.5px;color:var(--faint);letter-spacing:.1em}
+
+  .panel{background:linear-gradient(180deg,var(--surface),var(--bg-2));
+    border:1px solid var(--line);border-radius:var(--r)}
+
+  /* ── خط الأنابيب (البطل) ── */
+  .pipe-wrap{position:relative;overflow:hidden;padding:22px}
+  #pipeCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.7}
+  .pipe-top{position:relative;z-index:1;display:flex;align-items:center;gap:14px;
+    flex-wrap:wrap;margin-bottom:22px}
+  .pipe-top .t{font-family:var(--f-display);letter-spacing:.14em;text-transform:uppercase;
+    font-size:14px;font-weight:600}
+  .pipe-top .insight{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);
+    margin-inline-end:auto}
+  .pipe-top .insight b{color:var(--crit)}
+  .btn{font-family:var(--f-display);letter-spacing:.1em;text-transform:uppercase;
+    font-size:12px;font-weight:600;cursor:pointer;border-radius:var(--r-sm);
+    padding:10px 16px;border:1px solid transparent;transition:.18s;display:inline-flex;
+    align-items:center;gap:8px}
+  .btn-primary{background:linear-gradient(120deg,var(--accent),var(--accent-2));color:#04121a;
+    box-shadow:0 4px 18px var(--accent-glow)}
+  .btn-primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+  .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
+  .btn-ghost{background:var(--surface);border-color:var(--line);color:var(--fg)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .stages{position:relative;z-index:1;display:flex;align-items:flex-start;gap:0}
+  .stage{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:9px;
+    text-align:center;position:relative}
+  .node{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;
+    background:var(--bg-2);border:1.5px solid var(--line);position:relative;transition:.3s;
+    color:var(--faint)}
+  .node svg{width:26px;height:26px}
+  .node::before{content:"";position:absolute;inset:-6px;border-radius:50%;
+    border:1.5px solid transparent;transition:.3s}
+  .stage .nm{font-family:var(--f-display);font-size:11px;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--muted);transition:.3s}
+  .stage .st{font-family:var(--f-mono);font-size:9.5px;color:var(--faint);letter-spacing:.05em;
+    min-height:12px}
+  /* موصّل بين المراحل */
+  .conn{flex:0 0 auto;align-self:flex-start;margin-top:28px;height:2px;min-width:18px;
+    flex:1;position:relative;background:var(--line-soft);border-radius:2px;overflow:hidden}
+  .conn::after{content:"";position:absolute;inset:0;transform:translateX(-120%);
+    background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0}
+  .conn.flow::after{opacity:1;animation:flow 1s linear infinite}
+  @keyframes flow{to{transform:translateX(120%)}}
+
+  .stage.active .node{border-color:var(--accent);color:var(--accent);
+    box-shadow:0 0 22px var(--accent-glow);background:#0c1a22}
+  .stage.active .node::before{border-color:var(--accent);animation:spin 1.1s linear infinite;
+    border-top-color:transparent;border-right-color:transparent}
+  .stage.active .nm{color:var(--accent)}
+  .stage.done .node{border-color:var(--ok);color:var(--ok);background:#07140f}
+  .stage.done .nm{color:var(--fg)}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── بلاطات الإحصاء ── */
+  .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  .tile{padding:15px 16px;position:relative;overflow:hidden}
+  .tile .k{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--muted)}
+  .tile .v{font-family:var(--f-display);font-size:30px;font-weight:700;margin-top:6px;
+    font-variant-numeric:tabular-nums;line-height:1}
+  .tile .meta{font-family:var(--f-mono);font-size:10px;color:var(--faint);margin-top:5px}
+  .tile .spark{position:absolute;inset-inline-end:14px;top:14px;color:var(--accent);opacity:.5}
+
+  /* ── شبكة الوسط ── */
+  .grid2{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;align-items:stretch}
+  .card-pad{padding:18px}
+  .card-title{font-family:var(--f-display);font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 4px}
+  .card-sub{font-family:var(--f-mono);font-size:11px;color:var(--faint);margin:0 0 16px}
+
+  /* رادار */
+  .radar-box{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  #radar{width:170px;height:170px;flex:none}
+  .radar-legend{display:flex;flex-direction:column;gap:11px;min-width:0;flex:1}
+  .rl{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+    border-bottom:1px dashed var(--line-soft);padding-bottom:9px}
+  .rl .l{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+  .rl .n{font-family:var(--f-display);font-size:19px;font-weight:700;font-variant-numeric:tabular-nums}
+
+  /* مخطط الخطورة (دونات) */
+  .donut-box{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+  .donut{width:150px;height:150px;flex:none;position:relative}
+  .donut .center{position:absolute;inset:0;display:grid;place-content:center;text-align:center}
+  .donut .center .big{font-family:var(--f-display);font-size:30px;font-weight:700;line-height:1}
+  .donut .center .lab{font-family:var(--f-mono);font-size:9.5px;color:var(--muted);letter-spacing:.1em}
+  .sev-legend{display:flex;flex-direction:column;gap:9px;flex:1;min-width:0}
+  .sv{display:flex;align-items:center;gap:9px;font-family:var(--f-mono);font-size:11.5px}
+  .sv .sw{width:11px;height:11px;border-radius:3px;flex:none}
+  .sv .l{color:var(--muted);text-transform:capitalize}
+  .sv .n{margin-inline-start:auto;font-family:var(--f-display);font-weight:600;
+    font-variant-numeric:tabular-nums;color:var(--fg)}
+
+  /* ── جدول النتائج ── */
+  .tbl-scroll{overflow-x:auto;border-radius:var(--r);border:1px solid var(--line)}
+  table{width:100%;border-collapse:collapse;min-width:720px}
+  thead th{font-family:var(--f-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--faint);text-align:start;font-weight:500;padding:12px 14px;
+    background:var(--bg-2);border-bottom:1px solid var(--line);position:sticky;top:0}
+  tbody td{padding:13px 14px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr{transition:.15s}
+  tbody tr:hover{background:var(--surface-2)}
+  tbody tr.fresh{animation:fresh 1.4s ease}
+  @keyframes fresh{0%{background:var(--accent-glow)}100%{background:transparent}}
+  .host{font-family:var(--f-mono);font-size:12.5px;color:var(--fg);display:flex;align-items:center;gap:8px}
+  .host::before{content:"";width:4px;height:22px;border-radius:2px;background:var(--sev,var(--line));flex:none}
+  .vt{font-size:12.5px}
+  .cvss{font-family:var(--f-display);font-weight:700;font-variant-numeric:tabular-nums;font-size:14px}
+  .badge{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;padding:3px 8px;border-radius:999px;
+    text-transform:uppercase;border:1px solid}
+  .src{font-family:var(--f-mono);font-size:10.5px;color:var(--muted)}
+  .src .strix{color:var(--accent)}
+  .pill{font-family:var(--f-mono);font-size:10px;letter-spacing:.05em;padding:4px 9px;border-radius:999px;
+    text-transform:uppercase;white-space:nowrap}
+  .p-needs_review{background:#2a2033;color:var(--med);border:1px solid #4a3a1a}
+  .p-confirmed{background:#07140f;color:var(--ok);border:1px solid #14402e}
+  .p-reported{background:#0c1626;color:var(--low);border:1px solid #1d3550}
+  .p-not_applicable,.p-duplicate{background:#151c2b;color:var(--faint);border:1px solid var(--line)}
+  .chk{color:var(--accent)}
+
+  /* ── سجل الحارس ── */
+  .gate-list{display:flex;flex-direction:column}
+  .ga{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line-soft);
+    font-family:var(--f-mono);font-size:12px}
+  .ga:last-child{border-bottom:none}
+  .ga .ic{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;flex:none}
+  .ga.allow .ic{background:#07140f;color:var(--ok)}
+  .ga.deny .ic{background:#20090f;color:var(--deny)}
+  .ga .tgt{color:var(--fg);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ga .rsn{color:var(--faint);margin-inline-start:auto;font-size:10.5px;white-space:nowrap}
+
+  footer{margin-top:34px;padding-top:18px;border-top:1px solid var(--line);
+    font-family:var(--f-mono);font-size:11px;color:var(--faint);line-height:1.7}
+  footer b{color:var(--med)}
+
+  /* توست */
+  #toast{position:fixed;left:50%;transform:translateX(-50%) translateY(20px);
+    bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:40;
+    background:#07140f;border:1px solid #14402e;color:var(--ok);
+    font-family:var(--f-mono);font-size:12.5px;padding:12px 18px;border-radius:999px;
+    box-shadow:0 10px 30px #000a;opacity:0;pointer-events:none;transition:.3s}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media(max-width:860px){
+    .grid2{grid-template-columns:1fr}
+    .tiles{grid-template-columns:repeat(2,1fr)}
+  }
+  @media(max-width:560px){
+    .stages{flex-wrap:nowrap;overflow-x:auto;padding-bottom:6px}
+    .stage{min-width:76px}
+    .node{width:48px;height:48px}.node svg{width:21px;height:21px}
+    .brand h1{font-size:16px}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *{animation-duration:.001ms!important;animation-iteration-count:1!important}
+    .dot{animation:none}
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M17 2l13 7v8c0 8-5.5 13-13 15C9 30 4 25 4 17V9l13-7z" stroke="#2de2c6" stroke-width="1.6"/>
+          <path d="M17 10v8l6 3" stroke="#6a8dff" stroke-width="1.8" stroke-linecap="round"/>
+          <circle cx="17" cy="17" r="2.3" fill="#2de2c6"/>
+        </svg>
+      </div>
+      <div>
+        <h1>Strix Console</h1>
+        <div class="sub">VULN&nbsp;AUTOMATION&nbsp;·&nbsp;SCOPE-SAFE</div>
+      </div>
+    </div>
+    <select id="progSel" aria-label="اختيار البرنامج"></select>
+    <span class="status-pill"><span class="dot" id="statusDot"></span><span id="statusText">متصل</span></span>
+  </header>
+
+  <!-- خط الأنابيب -->
+  <section class="panel pipe-wrap">
+    <canvas id="pipeCanvas" aria-hidden="true"></canvas>
+    <div class="pipe-top">
+      <span class="t">خط سير الفحص</span>
+      <span class="insight" id="insight"></span>
+      <button class="btn btn-primary" id="runBtn">▶ تشغيل السلسلة الكاملة</button>
+    </div>
+    <div class="stages" id="stages"></div>
+  </section>
+
+  <!-- إحصاءات -->
+  <div class="sec-head"><h2>نظرة عامة</h2><span class="line"></span><span class="tag" id="progTag"></span></div>
+  <section class="tiles" id="tiles"></section>
+
+  <!-- رادار + خطورة -->
+  <div class="sec-head"><h2>الاستكشاف والخطورة</h2><span class="line"></span></div>
+  <div class="grid2">
+    <section class="panel card-pad">
+      <p class="card-title">رادار الاستكشاف</p>
+      <p class="card-sub">المضيفات المكتشَفة · recon حيّ</p>
+      <div class="radar-box">
+        <canvas id="radar" width="340" height="340" aria-label="رادار الاستكشاف"></canvas>
+        <div class="radar-legend" id="radarLegend"></div>
+      </div>
+    </section>
+    <section class="panel card-pad">
+      <p class="card-title">توزيع الخطورة</p>
+      <p class="card-sub">النتائج الموحّدة حسب CVSS</p>
+      <div class="donut-box">
+        <div class="donut">
+          <svg viewBox="0 0 42 42" id="donutSvg" aria-hidden="true"></svg>
+          <div class="center"><div class="big" id="donutTotal">0</div><div class="lab">FINDINGS</div></div>
+        </div>
+        <div class="sev-legend" id="sevLegend"></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- النتائج -->
+  <div class="sec-head"><h2>النتائج الموحّدة</h2><span class="line"></span><span class="tag">needs_review → confirmed → reported</span></div>
+  <div class="tbl-scroll">
+    <table>
+      <thead><tr>
+        <th>المضيف</th><th>النوع</th><th>الخطورة</th><th>CVSS</th><th>المصادر</th><th>الحالة</th>
+      </tr></thead>
+      <tbody id="findBody"></tbody>
+    </table>
+  </div>
+
+  <!-- الحارس -->
+  <div class="sec-head"><h2>حارس النطاق</h2><span class="line"></span><span class="tag">SCOPE GATEKEEPER · audit log</span></div>
+  <section class="panel card-pad"><div class="gate-list" id="gateList"></div></section>
+
+  <footer>
+    كل هدف يمرّ عبر <b>Scope Gatekeeper</b> قبل أي فحص — خارج النطاق يُرفض ويُسجَّل.
+    النتائج تبقى <b>مسودّات تتطلب مراجعة بشرية</b> — لا إرسال آلي إلى HackerOne.<br>
+    استخدم المنصّة على أهداف مصرّح بها فقط (برامج bug bounty أو بيئات تملكها).
+  </footer>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  "use strict";
+  var RM = matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+  /* ── بيانات تجريبية (تُستخدم إن تعذّر الاتصال بالـ API) ── */
+  var DEMO = {
+    programs:[{id:1,name:"Acme Security",handle:"acme"},{id:2,name:"Globex BBP",handle:"globex"}],
+    hosts:{total:38,inScope:31,live:24,subdomains:14},
+    findings:[
+      {host:"app.acme.com",vuln_type:"SQL Injection",severity:"critical",cvss_score:9.8,sources:"nuclei,strix",confirmed_by_strix:true,status:"confirmed"},
+      {host:"api.acme.com",vuln_type:"SSRF",severity:"high",cvss_score:8.6,sources:"strix",confirmed_by_strix:true,status:"confirmed"},
+      {host:"auth.acme.com",vuln_type:"IDOR",severity:"high",cvss_score:7.1,sources:"strix",confirmed_by_strix:true,status:"needs_review"},
+      {host:"dash.acme.com",vuln_type:"Reflected XSS",severity:"medium",cvss_score:6.1,sources:"nuclei",confirmed_by_strix:false,status:"needs_review"},
+      {host:"cdn.acme.com",vuln_type:"Exposed .git",severity:"medium",cvss_score:5.3,sources:"nuclei",confirmed_by_strix:false,status:"reported"},
+      {host:"mail.acme.com",vuln_type:"Open Redirect",severity:"low",cvss_score:3.1,sources:"nuclei",confirmed_by_strix:false,status:"not_applicable"}
+    ],
+    audit:[
+      {decision:"allow",target_value:"app.acme.com",reason:"ضمن النطاق (*.acme.com)"},
+      {decision:"deny",target_value:"internal.acme.corp",reason:"غير موجود في النطاق"},
+      {decision:"allow",target_value:"api.acme.com",reason:"ضمن النطاق (*.acme.com)"},
+      {decision:"deny",target_value:"10.0.0.5",reason:"مُستبعَد صراحة"},
+      {decision:"allow",target_value:"auth.acme.com",reason:"ضمن النطاق (*.acme.com)"}
+    ]
+  };
+
+  var SEV = {critical:"var(--crit)",high:"var(--high)",medium:"var(--med)",low:"var(--low)",info:"var(--info)"};
+  var STAGES = [
+    {k:"recon",nm:"Recon",ic:'<path d="M12 2a10 10 0 100 20M12 2v10l7 4" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="12" cy="12" r="2" fill="currentColor"/>'},
+    {k:"scan",nm:"Scan",ic:'<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round"/>'},
+    {k:"strix",nm:"Strix AI",ic:'<path d="M12 3v4M12 17v4M5 12H3M21 12h-2M6 6l1.5 1.5M16.5 16.5L18 18M18 6l-1.5 1.5M7.5 16.5L6 18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="12" cy="12" r="3.3" stroke="currentColor" stroke-width="1.6" fill="none"/>'},
+    {k:"correlate",nm:"Correlate",ic:'<circle cx="8" cy="8" r="4.2" stroke="currentColor" stroke-width="1.5" fill="none"/><circle cx="16" cy="16" r="4.2" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M11 11l2 2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>'},
+    {k:"triage",nm:"Triage",ic:'<path d="M12 21a9 9 0 110-18 9 9 0 010 18z" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M12 12l4-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M12 7v2M7 12H9M17 12h-2" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'},
+    {k:"report",nm:"Report",ic:'<path d="M7 3h7l4 4v14H7zM14 3v4h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M9 13h6M9 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'}
+  ];
+
+  var S = {live:false, data:null};
+  var $=function(s){return document.querySelector(s)};
+
+  /* ── تحميل: جرّب الـ API الحقيقي، وإلا بيانات تجريبية ── */
+  function j(u,o){return fetch(u,Object.assign({headers:{"Accept":"application/json"}},o||{}))
+    .then(function(r){if(!r.ok)throw 0;return r.json()})}
+
+  async function boot(){
+    try{
+      var progs=await j("/programs");
+      if(!Array.isArray(progs)||!progs.length) throw 0;
+      var pid=progs[0].id;
+      var res=await Promise.all([
+        j("/programs/"+pid+"/correlated").catch(function(){return[]}),
+        j("/programs/"+pid+"/hosts").catch(function(){return[]}),
+        j("/programs/"+pid+"/audit").catch(function(){return[]})
+      ]);
+      S.live=true;
+      S.data=shape(progs,res[0],res[1],res[2]);
+    }catch(e){
+      S.live=false;
+      var f=DEMO.findings.slice();
+      S.data={programs:DEMO.programs,hosts:DEMO.hosts,findings:f,audit:DEMO.audit};
+    }
+    render();
+  }
+  function shape(progs,corr,hosts,audit){
+    var inScope=hosts.filter(function(h){return h.in_scope}).length;
+    return {
+      programs:progs,
+      hosts:{total:hosts.length,inScope:inScope,live:hosts.filter(function(h){return h.is_live}).length,
+             subdomains:hosts.filter(function(h){return h.source==="subfinder"}).length},
+      findings:corr.map(function(c){return{host:c.host,vuln_type:c.vuln_type,severity:c.severity,
+        cvss_score:c.cvss_score,sources:c.sources,confirmed_by_strix:c.confirmed_by_strix,status:c.status}}),
+      audit:(audit||[]).slice(0,6)
+    };
+  }
+
+  /* ── عرض ── */
+  function render(){
+    var d=S.data;
+    $("#statusDot").className="dot"+(S.live?"":" demo");
+    $("#statusText").textContent=S.live?"متصل بالـ API":"بيانات تجريبية";
+    // المحدّد
+    var sel=$("#progSel");sel.innerHTML="";
+    d.programs.forEach(function(p){var o=document.createElement("option");o.textContent=p.name;sel.appendChild(o)});
+    $("#progTag").textContent=d.programs[0]?("● "+d.programs[0].handle):"";
+    buildStages();
+    renderTiles();
+    renderDonut();
+    renderRadar();
+    renderFindings(d.findings,false);
+    renderGate(d.audit);
+    renderInsight();
+  }
+
+  function buildStages(){
+    var box=$("#stages");box.innerHTML="";
+    STAGES.forEach(function(s,i){
+      if(i){var c=document.createElement("div");c.className="conn";c.dataset.i=i;box.appendChild(c)}
+      var el=document.createElement("div");el.className="stage";el.dataset.k=s.k;
+      el.innerHTML='<div class="node"><svg viewBox="0 0 24 24" aria-hidden="true">'+s.ic+'</svg></div>'+
+        '<div class="nm">'+s.nm+'</div><div class="st"></div>';
+      box.appendChild(el);
+    });
+  }
+
+  function num(el,to,dur,dec){
+    var t0=performance.now();to=+to||0;dur=RM?0:(dur||900);
+    function step(t){var p=dur?Math.min((t-t0)/dur,1):1;var e=1-Math.pow(1-p,3);
+      el.textContent=(to*e).toFixed(dec||0);if(p<1)requestAnimationFrame(step)}
+    requestAnimationFrame(step);
+  }
+
+  function renderTiles(){
+    var d=S.data,f=d.findings;
+    var conf=f.filter(function(x){return x.confirmed_by_strix}).length;
+    var items=[
+      {k:"البرامج",v:d.programs.length,m:"نشطة",dec:0},
+      {k:"مضيفات",v:d.hosts.total,m:d.hosts.live+" حيّة",dec:0},
+      {k:"ضمن النطاق",v:d.hosts.inScope,m:"مسموح فحصها",dec:0},
+      {k:"نتائج",v:f.length,m:"موحّدة",dec:0},
+      {k:"مؤكّدة Strix",v:conf,m:"استغلال فعلي",dec:0}
+    ];
+    var box=$("#tiles");box.innerHTML="";
+    items.forEach(function(it){
+      var el=document.createElement("div");el.className="panel tile";
+      el.innerHTML='<div class="k">'+it.k+'</div><div class="v">0</div><div class="meta">'+it.m+'</div>'+
+        '<svg class="spark" width="40" height="16" viewBox="0 0 40 16" fill="none"><path d="M0 13L8 9 16 11 24 4 32 7 40 2" stroke="currentColor" stroke-width="1.5"/></svg>';
+      box.appendChild(el);num(el.querySelector(".v"),it.v,900,it.dec);
+    });
+  }
+
+  function sevCounts(){
+    var c={critical:0,high:0,medium:0,low:0,info:0};
+    S.data.findings.forEach(function(f){if(c[f.severity]!=null)c[f.severity]++});return c;
+  }
+  function renderDonut(){
+    var c=sevCounts(),order=["critical","high","medium","low","info"];
+    var total=order.reduce(function(a,k){return a+c[k]},0);
+    var svg=$("#donutSvg");svg.innerHTML="";
+    svg.innerHTML='<circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--line)" stroke-width="4"/>';
+    var off=25; // يبدأ من الأعلى
+    order.forEach(function(k){
+      if(!c[k])return;
+      var pct=total?c[k]/total*100:0;
+      var ci=document.createElementNS("http://www.w3.org/2000/svg","circle");
+      ci.setAttribute("cx","21");ci.setAttribute("cy","21");ci.setAttribute("r","15.9155");
+      ci.setAttribute("fill","none");ci.setAttribute("stroke",SEV[k]);ci.setAttribute("stroke-width","4");
+      ci.setAttribute("stroke-dasharray",pct+" "+(100-pct));
+      ci.setAttribute("stroke-dashoffset",off);ci.setAttribute("transform","rotate(-90 21 21)");
+      ci.style.transition=RM?"":"stroke-dasharray .9s ease";
+      svg.appendChild(ci);off-=pct;
+    });
+    num($("#donutTotal"),total,900);
+    var leg=$("#sevLegend");leg.innerHTML="";
+    order.forEach(function(k){
+      var el=document.createElement("div");el.className="sv";
+      el.innerHTML='<span class="sw" style="background:'+SEV[k]+'"></span><span class="l">'+k+'</span><span class="n">'+c[k]+'</span>';
+      leg.appendChild(el);
+    });
+  }
+
+  function renderRadar(){
+    var cv=$("#radar"),ctx=cv.getContext("2d"),W=340,cx=W/2,cy=W/2,R=150;
+    var h=S.data.hosts;
+    // نقاط ثابتة
+    var blips=[];for(var i=0;i<h.live;i++){var a=Math.random()*Math.PI*2,r=20+Math.random()*(R-26);
+      blips.push({x:cx+Math.cos(a)*r,y:cy+Math.sin(a)*r,ph:Math.random()})}
+    var ang=0;
+    function frame(){
+      ctx.clearRect(0,0,W,W);
+      // حلقات
+      ctx.strokeStyle="#223049";ctx.lineWidth=1;
+      [0.33,0.66,1].forEach(function(f){ctx.beginPath();ctx.arc(cx,cy,R*f,0,7);ctx.stroke()});
+      ctx.beginPath();ctx.moveTo(cx-R,cy);ctx.lineTo(cx+R,cy);ctx.moveTo(cx,cy-R);ctx.lineTo(cx,cy+R);ctx.stroke();
+      // مسح
+      if(!RM){
+        var g=ctx.createConicGradient?null:null;
+        ctx.save();ctx.translate(cx,cy);ctx.rotate(ang);
+        var grd=ctx.createLinearGradient(0,0,R,0);
+        grd.addColorStop(0,"#2de2c600");grd.addColorStop(1,"#2de2c655");
+        ctx.fillStyle=grd;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,R,-0.42,0);ctx.closePath();ctx.fill();
+        ctx.restore();
+      }
+      // بلِبات
+      blips.forEach(function(b){
+        var tw=RM?0.8:(0.55+0.45*Math.sin(performance.now()/500+b.ph*6));
+        ctx.fillStyle="rgba(45,226,198,"+tw.toFixed(2)+")";
+        ctx.beginPath();ctx.arc(b.x,b.y,2.6,0,7);ctx.fill();
+      });
+      ctx.fillStyle="#2de2c6";ctx.beginPath();ctx.arc(cx,cy,3,0,7);ctx.fill();
+      if(!RM){ang+=0.028;requestAnimationFrame(frame)}
+    }
+    frame();
+    var leg=$("#radarLegend");leg.innerHTML="";
+    [["مضيفات حيّة",h.live],["نطاقات فرعية",h.subdomains],["ضمن النطاق",h.inScope],["الإجمالي",h.total]]
+      .forEach(function(p){var el=document.createElement("div");el.className="rl";
+        el.innerHTML='<span class="l">'+p[0]+'</span><span class="n">0</span>';leg.appendChild(el);
+        num(el.querySelector(".n"),p[1],1000)});
+  }
+
+  function renderFindings(list,freshAll){
+    var tb=$("#findBody");tb.innerHTML="";
+    list.forEach(function(f){
+      var tr=document.createElement("tr");if(freshAll)tr.className="fresh";
+      var conf=f.confirmed_by_strix?'<span class="chk">✓</span> ':'';
+      var srcHtml=(f.sources||"").split(",").map(function(s){
+        return s==="strix"?'<span class="strix">strix</span>':s}).join(", ");
+      tr.innerHTML=
+        '<td><span class="host" style="--sev:'+SEV[f.severity]+'">'+f.host+'</span></td>'+
+        '<td class="vt">'+f.vuln_type+'</td>'+
+        '<td><span class="badge" style="color:'+SEV[f.severity]+';border-color:'+SEV[f.severity]+'44;background:'+SEV[f.severity]+'14">'+f.severity+'</span></td>'+
+        '<td><span class="cvss" style="color:'+SEV[f.severity]+'">'+(f.cvss_score!=null?f.cvss_score:"—")+'</span></td>'+
+        '<td class="src">'+conf+srcHtml+'</td>'+
+        '<td><span class="pill p-'+f.status+'">'+String(f.status).replace(/_/g," ")+'</span></td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  function renderGate(audit){
+    var box=$("#gateList");box.innerHTML="";
+    (audit||[]).forEach(function(a){
+      var allow=a.decision==="allow";
+      var el=document.createElement("div");el.className="ga "+(allow?"allow":"deny");
+      el.innerHTML='<span class="ic">'+(allow?"✓":"✕")+'</span>'+
+        '<span class="tgt">'+a.target_value+'</span>'+
+        '<span class="rsn">'+(a.reason||"")+'</span>';
+      box.appendChild(el);
+    });
+  }
+
+  function renderInsight(){
+    var f=S.data.findings;
+    var crit=f.filter(function(x){return x.severity==="critical"&&x.confirmed_by_strix}).length;
+    var hi=f.filter(function(x){return x.severity==="high"&&x.status==="confirmed"}).length;
+    var el=$("#insight");
+    if(crit) el.innerHTML="⚠ <b>"+crit+"</b> ثغرة حرجة مؤكّدة بـ Strix — جاهزة للمراجعة";
+    else if(hi) el.innerHTML="<b>"+hi+"</b> ثغرة عالية مؤكّدة بانتظار التقرير";
+    else el.textContent="لا ثغرات حرجة مؤكّدة حاليًا";
+  }
+
+  /* ── الموشن: تشغيل السلسلة ── */
+  var running=false;
+  function sleep(ms){return new Promise(function(r){setTimeout(r,RM?0:ms)})}
+  async function runPipeline(){
+    if(running)return;running=true;
+    var btn=$("#runBtn");btn.disabled=true;btn.textContent="⏳ قيد التشغيل…";
+    // وضع حيّ: أطلق الطلب الفعلي أيضًا
+    if(S.live){var p=S.data.programs[0];var seed=(p&&p.handle?p.handle:"")+".com";
+      fetch("/programs/"+(p?p.id:1)+"/pipeline",{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({seed:seed})}).catch(function(){});}
+    var stages=[].slice.call(document.querySelectorAll(".stage"));
+    var conns=[].slice.call(document.querySelectorAll(".conn"));
+    var labels=["يكتشف المضيفات…","يفحص بالقوالب…","استغلال بالذكاء…","يدمج التكرار…","يحسب CVSS…","يولّد المسودة…"];
+    stages.forEach(function(s){s.className="stage";s.querySelector(".st").textContent=""});
+    for(var i=0;i<stages.length;i++){
+      if(i){conns[i-1].classList.add("flow");await sleep(620);conns[i-1].classList.remove("flow")}
+      stages[i].classList.add("active");stages[i].querySelector(".st").textContent=labels[i];
+      await sleep(1050);
+      stages[i].classList.remove("active");stages[i].classList.add("done");
+      stages[i].querySelector(".st").textContent="تم";
+    }
+    // نتيجة جديدة (محاكاة اكتشاف) — في الوضع التجريبي فقط
+    if(!S.live){
+      var exist=S.data.findings.some(function(x){return x.host==="shop.acme.com"});
+      if(!exist){
+        S.data.findings.unshift({host:"shop.acme.com",vuln_type:"SSTI",severity:"critical",
+          cvss_score:9.1,sources:"nuclei,strix",confirmed_by_strix:true,status:"needs_review"});
+        S.data.hosts.total++;S.data.hosts.live++;S.data.hosts.inScope++;
+        renderTiles();renderDonut();renderFindings(S.data.findings,true);renderInsight();
+      }
+    }
+    toast(S.live?"✓ أُطلقت السلسلة على الـ worker":"✓ اكتملت السلسلة — نتيجة جديدة مكتشَفة");
+    btn.disabled=false;btn.textContent="▶ تشغيل السلسلة الكاملة";running=false;
+  }
+  function toast(msg){var t=$("#toast");t.textContent=msg;t.classList.add("show");
+    setTimeout(function(){t.classList.remove("show")},3200)}
+
+  /* ── شبكة جسيمات خلف الأنابيب ── */
+  function particles(){
+    var cv=$("#pipeCanvas"),ctx=cv.getContext("2d"),pts=[],raf;
+    function size(){var r=cv.getBoundingClientRect();cv.width=r.width*devicePixelRatio;
+      cv.height=r.height*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,1,1);
+      return r}
+    var r=size();var N=Math.min(42,Math.round(r.width/26));
+    for(var i=0;i<N;i++)pts.push({x:Math.random()*r.width,y:Math.random()*r.height,
+      vx:(Math.random()-.5)*.25,vy:(Math.random()-.5)*.25});
+    function draw(){
+      r=cv.getBoundingClientRect();ctx.clearRect(0,0,r.width,r.height);
+      for(var i=0;i<pts.length;i++){var p=pts[i];p.x+=p.vx;p.y+=p.vy;
+        if(p.x<0||p.x>r.width)p.vx*=-1;if(p.y<0||p.y>r.height)p.vy*=-1;
+        for(var k=i+1;k<pts.length;k++){var q=pts[k],dx=p.x-q.x,dy=p.y-q.y,dd=dx*dx+dy*dy;
+          if(dd<9000){ctx.strokeStyle="rgba(45,226,198,"+(0.1*(1-dd/9000)).toFixed(3)+")";
+            ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(q.x,q.y);ctx.stroke()}}
+        ctx.fillStyle="rgba(106,141,255,.5)";ctx.beginPath();ctx.arc(p.x,p.y,1.3,0,7);ctx.fill();}
+      raf=requestAnimationFrame(draw);
+    }
+    if(RM){ // إطار ثابت
+      for(var i2=0;i2<pts.length;i2++){var p2=pts[i2];ctx.fillStyle="rgba(106,141,255,.4)";
+        ctx.beginPath();ctx.arc(p2.x,p2.y,1.3,0,7);ctx.fill()}
+    } else draw();
+    addEventListener("resize",function(){cancelAnimationFrame(raf);var rr=size();
+      pts.forEach(function(p){p.x=Math.min(p.x,rr.width);p.y=Math.min(p.y,rr.height)});if(!RM)draw()});
+  }
+
+  $("#runBtn").addEventListener("click",runPipeline);
+  boot().then(particles);
+})();
+</script>
+</body>
+</html>

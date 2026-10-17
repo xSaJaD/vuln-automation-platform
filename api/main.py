@@ -5,9 +5,11 @@ Phase 1: نماذج البيانات + CRUD للبرامج والنطاق.
 Phase 2: Scope Gatekeeper يحرس إنشاء الأهداف.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse, RedirectResponse
 
 from api import __version__
 from api.db import init_db
@@ -52,3 +54,16 @@ app.include_router(pipeline.router)
 @app.get("/health", tags=["meta"])
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
+
+
+_DASHBOARD = os.path.join(os.path.dirname(__file__), "static", "index.html")
+
+
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse("/dashboard")
+
+
+@app.get("/dashboard", include_in_schema=False)
+def dashboard():
+    return FileResponse(_DASHBOARD)

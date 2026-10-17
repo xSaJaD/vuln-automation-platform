@@ -65,7 +65,8 @@
 | 7 ✅ | Triage + CVSS | حالة finding + scoring (CVSS 3.1) |
 | 8 ✅ | توليد التقارير | مسودة Markdown — **مراجعة يدوية إلزامية** |
 | 9 ✅ | Orchestration | سلسلة كاملة + قفل تزامن + جدولة دورية |
-| 10+ | UI، إشعارات، مرونة، HackerOne API… | انظر الخطة |
+| 10 ✅ | لوحة التحكم (UI) | Strix Console على /dashboard |
+| 11+ | إشعارات، مرونة، HackerOne API، RBAC… | انظر الخطة |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).
