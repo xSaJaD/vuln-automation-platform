@@ -11,14 +11,37 @@
 
 ## الحالة
 
-**Phase 0 — الإعداد الأولي.** حاليًا المشروع يحتوي فقط على:
+**منفّذ: Phase 0 + Phase 1 + Phase 2.**
 
-- هيكلية المستودع
-- `docker-compose` أساسي (Postgres + Redis + API)
-- API فارغ يرد `GET /health` فقط
-- قاعدة الأسرار (`.env.example`) وقواعد السلوك العامة (`AGENTS.md`)
+- **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
+- **Phase 1** — نماذج البيانات الستة (`programs`, `scope_assets`, `targets`,
+  `scan_runs`, `findings`, `audit_log`) + migrations (Alembic) + CRUD للبرامج والنطاق.
+- **Phase 2** — ⭐ **Scope Gatekeeper**: كل هدف يمر عبر فحص قبول/رفض ويُسجَّل في
+  `audit_log`. out-of-scope يتغلّب دائمًا؛ ولا تطابق إطلاقًا = رفض.
 
-المراحل اللاحقة (Scope Gatekeeper، Recon، Scan، دمج Strix…) غير منفّذة بعد.
+المراحل اللاحقة (Recon، Scan، دمج Strix…) غير منفّذة بعد.
+
+## نقاط الـ API الحالية
+
+| Method | Path | الوصف |
+|---|---|---|
+| GET | `/health` | فحص صحة |
+| POST | `/programs` | إنشاء برنامج |
+| GET | `/programs` · `/programs/{id}` | قائمة / تفاصيل |
+| POST | `/programs/{id}/scope` | إضافة asset للنطاق (in/out of scope) |
+| GET | `/programs/{id}/scope` | قائمة النطاق |
+| GET | `/programs/{id}/audit` | سجل تدقيق قرارات النطاق |
+| POST | `/targets` | إضافة هدف — **يمر عبر Scope Gatekeeper** |
+| GET | `/targets` | قائمة الأهداف |
+
+### migrations
+
+```bash
+# توليد migration جديد بعد تعديل النماذج
+python -m alembic revision --autogenerate -m "رسالة"
+# تطبيق
+python -m alembic upgrade head
+```
 
 ## التشغيل السريع
 
