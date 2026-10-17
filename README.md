@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 11.**
+**منفّذ: Phase 0 → Phase 12.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -43,6 +43,9 @@
 - **Phase 11** — **الأمان وإدارة الأسرار**: تشفير الحقول الحسّاسة (Fernet)،
   تحديد المعدّل على الـ API، وفحص تسريب الأسرار (gitleaks) + checklist أمني.
   الأسرار من البيئة فقط. انظر `docs/SECURITY.md`.
+- **Phase 12** — **الاختبار والنشر**: CI (GitHub Actions) يشغّل ruff + pytest +
+  gitleaks على كل push/PR، اختبار تكامل end-to-end، و**أمر نشر واحد** (`make deploy`).
+  انظر `docs/DEPLOY.md`.
 
 المراحل اللاحقة (إشعارات، مرونة، HackerOne API، RBAC…) غير منفّذة بعد.
 
@@ -87,7 +90,7 @@ python -m alembic upgrade head
 ## التشغيل السريع
 
 ```bash
-cp .env.example .env          # عدّل القيم
+python scripts/init_env.py    # ينشئ .env ويضيف مفتاح التشفير تلقائيًا
 docker compose -f docker/docker-compose.yml up --build
 ```
 

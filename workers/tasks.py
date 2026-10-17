@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from workers import tools
-from workers.recon_logic import ReconTools, run_full_recon
-from workers.scan_logic import ScanTools, scan_hosts
-from workers.strix_logic import run_strix_scan
 
 # يُستورد celery_app بشكل كسول داخل الدالة لتجنّب دورة الاستيراد عند التسجيل.
 from workers.celery_app import celery_app  # noqa: E402
+from workers.recon_logic import ReconTools, run_full_recon
+from workers.scan_logic import ScanTools, scan_hosts
+from workers.strix_logic import run_strix_scan
 
 DEFAULT_TOOLS = ReconTools(
     subfinder=tools.run_subfinder,
@@ -126,7 +126,7 @@ def strix_run(program_id: int, target: str, instruction: str | None = None) -> d
     from api.models.program import Program
     from workers.strix_cli import run_strix_cli
 
-    def runner(tgt: str, instr: str | None) -> "StrixResult":  # noqa: F821
+    def runner(tgt: str, instr: str | None):
         return run_strix_cli(
             tgt,
             instr,

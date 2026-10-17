@@ -67,7 +67,8 @@
 | 9 ✅ | Orchestration | سلسلة كاملة + قفل تزامن + جدولة دورية |
 | 10 ✅ | لوحة التحكم (UI) | Strix Console على /dashboard |
 | 11 ✅ | الأمان وإدارة الأسرار | تشفير حقول + rate limit + gitleaks |
-| 12+ | إشعارات، مرونة، HackerOne API، RBAC… | انظر الخطة |
+| 12 ✅ | الاختبار والنشر | CI (ruff+pytest+gitleaks) + make deploy |
+| 13+ | إشعارات، مرونة، HackerOne API، RBAC… | انظر الخطة |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).

@@ -1,10 +1,10 @@
 """اختبارات Phase 11 — التشفير، تحديد المعدّل، واعتمادات grey-box المُشفّرة."""
 
 import pytest
+from cryptography.fernet import InvalidToken
 
 from api.services.crypto import FieldCipher, generate_key
 from api.services.ratelimit import RateLimiter
-
 
 # ── التشفير ──
 
@@ -17,7 +17,7 @@ def test_cipher_roundtrip():
 
 def test_wrong_key_cannot_decrypt():
     t = FieldCipher(generate_key()).encrypt("x")
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidToken):
         FieldCipher(generate_key()).decrypt(t)
 
 

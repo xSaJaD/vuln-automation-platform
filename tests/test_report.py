@@ -3,7 +3,6 @@
 الأهم: التقرير مسودة تحمل تنبيه "لا إرسال آلي"، ولا يُولَّد إلا لـ finding مؤكَّد.
 """
 
-from api.models.correlation import CorrelatedFinding
 from api.models.program import Program
 from api.models.scan import Finding, FindingStatus, ScanRun, ScanStatus
 from api.services.report_generator import render_report
