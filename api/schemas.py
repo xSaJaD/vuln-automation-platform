@@ -67,6 +67,21 @@ class FindingOut(BaseModel):
     status: str
 
 
+class CorrelatedFindingOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    program_id: int
+    host: str
+    endpoint: str | None
+    vuln_type: str
+    severity: str
+    sources: str
+    confirmed_by_strix: bool
+    evidence: str | None
+    finding_count: int
+    status: str
+
+
 class TargetIn(BaseModel):
     program_id: int
     value: str

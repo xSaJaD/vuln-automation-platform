@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 5.**
+**منفّذ: Phase 0 → Phase 6.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -26,8 +26,11 @@
 - **Phase 5** — **دمج Strix** (المحرك الرئيسي بالذكاء الاصطناعي): wrapper حول
   `strix` CLI، الهدف يمر عبر الحارس أولًا، النتائج تُنسَّق كـ `findings`
   (`source_tool='strix'`, `confirmed_by_strix=True`, `status=needs_review`).
+- **Phase 6** — **Normalize + Correlate**: يدمج الـ findings حسب
+  (host + endpoint + نوع الثغرة) في `correlated_findings` موحّدة؛ يجمع المصادر،
+  يأخذ أعلى خطورة، ويعلّم `confirmed_by_strix` عند تطابق nuclei + Strix.
 
-المراحل اللاحقة (Normalize/Correlate، Triage، التقارير…) غير منفّذة بعد.
+المراحل اللاحقة (Triage + CVSS، التقارير…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -45,7 +48,9 @@
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
 | POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
 | POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
-| GET | `/programs/{id}/findings` | قائمة النتائج |
+| GET | `/programs/{id}/findings` | قائمة النتائج الخام |
+| POST | `/programs/{id}/correlate` | دمج النتائج في findings موحّدة |
+| GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة |
 
 > تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
 > subfinder/httpx/naabu. الاختبارات لا تحتاجها (تستخدم أدوات وهمية).

@@ -2,6 +2,7 @@
 
 from api.models.audit import AuditLog
 from api.models.base import Base
+from api.models.correlation import CorrelatedFinding
 from api.models.program import AssetKind, Program, ScopeAsset
 from api.models.recon import Host
 from api.models.scan import Finding, FindingStatus, ScanRun, ScanStatus
@@ -19,5 +20,6 @@ __all__ = [
     "Finding",
     "ScanStatus",
     "FindingStatus",
+    "CorrelatedFinding",
     "AuditLog",
 ]
