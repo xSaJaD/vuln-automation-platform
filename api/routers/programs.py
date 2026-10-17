@@ -69,6 +69,19 @@ def list_scope_assets(program_id: int, db: Session = Depends(get_db)):
     return prog.scope_assets
 
 
+@router.post("/{program_id}/scope/sync")
+def sync_scope(program_id: int, db: Session = Depends(get_db)):
+    if not db.get(Program, program_id):
+        raise HTTPException(404, "البرنامج غير موجود")
+    try:
+        from workers.celery_app import celery_app
+
+        task = celery_app.send_task("scope.sync", args=[program_id])
+    except Exception as exc:
+        raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
+    return {"status": "queued", "task_id": task.id}
+
+
 @router.get("/{program_id}/audit")
 def list_audit(program_id: int, db: Session = Depends(get_db)):
     rows = db.scalars(

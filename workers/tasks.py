@@ -128,6 +128,44 @@ def scheduled_recon() -> dict:
         db.close()
 
 
+@celery_app.task(name="scope.sync", base=ResilientTask, **RETRY)
+def scope_sync(program_id: int) -> dict:
+    """يزامن نطاق برنامج من HackerOne ويعطّل الأصول التي خرجت من النطاق."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.scope_sync import fetch_structured_scopes, reconcile_scope
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        remote = fetch_structured_scopes(program.handle)
+        if not remote:
+            return {"status": "skipped", "reason": "لا نطاق بعيد (مفاتيح HackerOne غير مهيّأة؟)"}
+        return reconcile_scope(db, program, remote)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="scope.sync_all")
+def scope_sync_all() -> dict:
+    """مهمة دورية: يزامن نطاق كل البرامج النشطة."""
+    from sqlalchemy import select
+
+    from api.db import SessionLocal
+    from api.models.program import Program
+
+    db = SessionLocal()
+    try:
+        programs = list(db.scalars(select(Program).where(Program.active.is_(True))))
+        for program in programs:
+            scope_sync.delay(program.id)
+        return {"programs": len(programs)}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="monitor.check_workers")
 def monitor_check_workers() -> dict:
     """مراقبة دورية: يُنبّه إن لم يوجد أي worker نشط."""

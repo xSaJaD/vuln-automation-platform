@@ -8,6 +8,8 @@ class ProgramIn(BaseModel):
     handle: str
     platform: str = "hackerone"
     policy_url: str | None = None
+    roe_notes: str | None = None
+    rate_limit_per_min: int | None = None
 
 
 class ProgramOut(BaseModel):
@@ -18,6 +20,8 @@ class ProgramOut(BaseModel):
     platform: str
     policy_url: str | None
     active: bool
+    roe_notes: str | None
+    rate_limit_per_min: int | None
 
 
 class ScopeAssetIn(BaseModel):
@@ -36,6 +40,8 @@ class ScopeAssetOut(BaseModel):
     in_scope: bool
     max_severity: str | None
     notes: str | None
+    instruction: str | None
+    active: bool
 
 
 class HostOut(BaseModel):

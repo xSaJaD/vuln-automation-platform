@@ -70,7 +70,8 @@
 | 12 ✅ | الاختبار والنشر | CI (ruff+pytest+gitleaks) + make deploy |
 | 13 ✅ | تنبيهات ومراقبة | Webhook + سجلّات JSON + صحة العمّال |
 | 14 ✅ | المرونة والتعافي | retry + dead-letter + نسخ احتياطي |
-| 15+ | مزامنة النطاق، HackerOne API، RBAC… | انظر الخطة |
+| 15 ✅ | مزامنة النطاق + ROE | sync من HackerOne + تعطيل خارج النطاق |
+| 16–17 | HackerOne API (تكرار+إرسال)، RBAC | انظر الخطة |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).

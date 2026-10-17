@@ -12,6 +12,7 @@ from api.services.scope_matching import Decision, ScopeRule, evaluate
 
 
 def rules_for(program: Program) -> list[ScopeRule]:
+    # الأصول المُعطَّلة (خرجت من النطاق عبر Scope Sync) تُستبعَد من المطابقة.
     return [
         ScopeRule(
             kind=asset.kind.value,
@@ -19,6 +20,7 @@ def rules_for(program: Program) -> list[ScopeRule]:
             in_scope=asset.in_scope,
         )
         for asset in program.scope_assets
+        if asset.active is not False
     ]
 
 

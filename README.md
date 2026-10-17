@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 14.**
+**منفّذ: Phase 0 → Phase 15.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -51,8 +51,10 @@
 - **Phase 14** — **المرونة والتعافي**: إعادة محاولة تلقائية (backoff)، dead-letter
   (`failed_tasks`) للمهام الفاشلة نهائيًا، تسجيل صريح لفشل الفحص كـ `failed`،
   ونسخ احتياطي دوري لـ Postgres (`make backup`).
+- **Phase 15** — **مزامنة النطاق وقواعد الاشتباك**: يسحب النطاق من HackerOne دوريًا،
+  و**أي أصل يخرج من الـ scope يُعطَّل تلقائيًا فيتوقف فحصه**. حقول ROE لكل برنامج.
 
-المراحل اللاحقة (مزامنة النطاق، HackerOne API، RBAC…) غير منفّذة بعد.
+المراحل اللاحقة (HackerOne API للتكرار والإرسال، RBAC…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -64,6 +66,7 @@
 | GET | `/programs` · `/programs/{id}` | قائمة / تفاصيل |
 | POST | `/programs/{id}/scope` | إضافة asset للنطاق (in/out of scope) |
 | GET | `/programs/{id}/scope` | قائمة النطاق |
+| POST | `/programs/{id}/scope/sync` | مزامنة النطاق من HackerOne |
 | GET | `/programs/{id}/audit` | سجل تدقيق قرارات النطاق |
 | POST | `/targets` | إضافة هدف — **يمر عبر Scope Gatekeeper** |
 | GET | `/targets` | قائمة الأهداف |

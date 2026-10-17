@@ -35,5 +35,9 @@ class Settings(BaseSettings):
     notify_min_severity: str = "high"   # أدنى خطورة تُنبِّه
     log_json: bool = True
 
+    # HackerOne API (مزامنة النطاق)
+    hackerone_api_username: str = ""
+    hackerone_api_token: str = ""
+
 
 settings = Settings()

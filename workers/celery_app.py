@@ -27,6 +27,10 @@ celery_app.conf.beat_schedule = {
         "task": "monitor.check_workers",
         "schedule": 300.0,  # كل 5 دقائق — تنبيه إن انقطع العمّال
     },
+    "scope-sync-daily": {
+        "task": "scope.sync_all",
+        "schedule": crontab(hour=2, minute=0),  # يوميًا 02:00 — مزامنة النطاق
+    },
 }
 
 # سجلّات JSON منظّمة للعمّال.

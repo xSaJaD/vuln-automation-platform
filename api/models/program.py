@@ -2,7 +2,7 @@
 
 import enum
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String, Text
+from sqlalchemy import Boolean, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from api.models.base import Base, TimestampMixin
@@ -26,6 +26,9 @@ class Program(Base, TimestampMixin):
     platform: Mapped[str] = mapped_column(String(50), default="hackerone")
     policy_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # قواعد الاشتباك (Rules of Engagement)
+    roe_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rate_limit_per_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     scope_assets: Mapped[list["ScopeAsset"]] = relationship(
         back_populates="program", cascade="all, delete-orphan"
@@ -43,5 +46,8 @@ class ScopeAsset(Base, TimestampMixin):
     in_scope: Mapped[bool] = mapped_column(Boolean, default=True)
     max_severity: Mapped[str | None] = mapped_column(String(20), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    instruction: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # يُعطَّل تلقائيًا عند خروج الأصل من نطاق البرنامج (Scope Sync).
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     program: Mapped["Program"] = relationship(back_populates="scope_assets")
