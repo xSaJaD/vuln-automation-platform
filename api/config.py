@@ -1,0 +1,19 @@
+"""إعدادات التطبيق — تُقرأ من متغيرات البيئة فقط (لا أسرار في الكود)."""
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    app_env: str = "development"
+    log_level: str = "info"
+    api_port: int = 8000
+
+    # تُستخدم فعليًا من المراحل اللاحقة؛ تبقى اختيارية في Phase 0.
+    db_url: str = ""
+    redis_url: str = ""
+    strix_llm: str = ""
+
+
+settings = Settings()

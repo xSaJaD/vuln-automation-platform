@@ -1,0 +1,24 @@
+# Secrets / local config
+.env
+*.env
+!.env.example
+
+# Scan outputs (never commit raw findings or recon data)
+strix_runs/
+reports/out/
+*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store
