@@ -29,6 +29,9 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# محرك Strix (يشغّل كل فحص في sandbox خاص — يحتاج وصولًا لـ Docker عند التشغيل).
+RUN pip install --no-cache-dir strix-agent
+
 COPY api/ ./api/
 COPY workers/ ./workers/
 

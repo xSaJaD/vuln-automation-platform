@@ -18,5 +18,10 @@ class Settings(BaseSettings):
     # مجلد حفظ النتائج الخام (JSONL) — يُركّب كـ volume في الـ worker.
     strix_runs_dir: str = "strix_runs"
 
+    # دمج Strix
+    llm_api_key: str = ""
+    strix_budget: str = ""   # حد أقصى لتكلفة LLM لكل تشغيل (اختياري)
+    strix_timeout: int = 1800
+
 
 settings = Settings()

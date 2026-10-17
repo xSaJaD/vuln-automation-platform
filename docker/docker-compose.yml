@@ -47,6 +47,9 @@ services:
     volumes:
       # نتائج الفحص الخام تُحفظ محليًا (strix_runs/) — تُقرأ لاحقًا.
       - ../strix_runs:/app/strix_runs
+      # Strix يشغّل كل فحص في sandbox خاص به عبر Docker.
+      # ⚠️ منح الوصول لـ docker.sock صلاحية قوية — فعّله فقط في بيئة موثوقة.
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy

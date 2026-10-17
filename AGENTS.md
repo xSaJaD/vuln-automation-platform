@@ -60,7 +60,7 @@
 | 2 | **Scope Gatekeeper** (الأهم أمنيًا) | يقبل/يرفض أي target صح |
 | 3 ✅ | Recon Workers | subfinder→httpx→naabu عبر Celery (مع فرض النطاق) |
 | 4 ✅ | Scan Workers (nuclei) | نتائج منسّقة (المضيفات ضمن النطاق فقط) |
-| 5 | دمج Strix | wrapper حول strix CLI داخل Docker |
+| 5 ✅ | دمج Strix | wrapper حول strix CLI داخل Docker (مع فرض النطاق) |
 | 6 | Normalize + Correlate | finding schema موحّد |
 | 7 | Triage + CVSS | حالة finding + scoring |
 | 8 | توليد التقارير | مسودة Markdown — **مراجعة يدوية إلزامية** |

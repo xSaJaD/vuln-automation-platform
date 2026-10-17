@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 4.**
+**منفّذ: Phase 0 → Phase 5.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -23,8 +23,11 @@
 - **Phase 4** — **Scan Workers** (nuclei): يفحص المضيفات الحيّة ضمن النطاق فقط،
   يُعيد التحقق من النطاق وقت الفحص، ويحوّل النتائج لـ `findings` (`source_tool='nuclei'`,
   `status=needs_review`). النتائج الخام تُحفظ في `strix_runs/`.
+- **Phase 5** — **دمج Strix** (المحرك الرئيسي بالذكاء الاصطناعي): wrapper حول
+  `strix` CLI، الهدف يمر عبر الحارس أولًا، النتائج تُنسَّق كـ `findings`
+  (`source_tool='strix'`, `confirmed_by_strix=True`, `status=needs_review`).
 
-المراحل اللاحقة (دمج Strix، Normalize/Correlate، التقارير…) غير منفّذة بعد.
+المراحل اللاحقة (Normalize/Correlate، Triage، التقارير…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -41,6 +44,7 @@
 | POST | `/programs/{id}/recon` | تشغيل recon (البذرة تمر عبر الحارس أولًا) |
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
 | POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
+| POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
 | GET | `/programs/{id}/findings` | قائمة النتائج |
 
 > تشغيل الـ recon يتطلب حاوية `worker` شغّالة (`docker compose up`) — فيها
