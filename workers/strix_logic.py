@@ -75,7 +75,13 @@ def run_strix_scan(
         db.commit()
         return scan_run, []
 
-    result = runner(target, instruction)
+    try:
+        result = runner(target, instruction)
+    except Exception:
+        # انقطاع Docker/LLM أو خطأ => يُسجَّل كـ failed، لا يُعتبر "لا ثغرات".
+        scan_run.status = ScanStatus.failed
+        db.commit()
+        raise
 
     findings: list[Finding] = []
     for vuln in result.vulnerabilities:

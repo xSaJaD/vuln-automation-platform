@@ -7,6 +7,7 @@ from workers import tools
 # يُستورد celery_app بشكل كسول داخل الدالة لتجنّب دورة الاستيراد عند التسجيل.
 from workers.celery_app import celery_app  # noqa: E402
 from workers.recon_logic import ReconTools, run_full_recon
+from workers.resilient import RETRY, ResilientTask
 from workers.scan_logic import ScanTools, scan_hosts
 from workers.strix_logic import run_strix_scan
 
@@ -19,7 +20,7 @@ DEFAULT_TOOLS = ReconTools(
 DEFAULT_SCAN_TOOLS = ScanTools(nuclei=tools.run_nuclei)
 
 
-@celery_app.task(name="recon.run_full")
+@celery_app.task(name="recon.run_full", base=ResilientTask, **RETRY)
 def recon_run_full(program_id: int, seed: str) -> dict:
     """يشغّل السلسلة الكاملة لبرنامج وبذرة. البذرة يُفترض أنها مرّت الحارس مسبقًا."""
     from api.db import SessionLocal
@@ -42,7 +43,7 @@ def recon_run_full(program_id: int, seed: str) -> dict:
         db.close()
 
 
-@celery_app.task(name="scan.run_nuclei")
+@celery_app.task(name="scan.run_nuclei", base=ResilientTask, **RETRY)
 def scan_run_nuclei(program_id: int) -> dict:
     """يفحص المضيفات الحيّة ضمن النطاق بـ nuclei ويخزّن النتائج كـ findings."""
     from api.config import settings
@@ -78,7 +79,7 @@ def scan_run_nuclei(program_id: int) -> dict:
         db.close()
 
 
-@celery_app.task(name="pipeline.run_full")
+@celery_app.task(name="pipeline.run_full", base=ResilientTask, **RETRY)
 def pipeline_run_full(program_id: int, seed: str) -> dict:
     """السلسلة الكاملة recon → scan → correlate تحت قفل تزامن."""
     from api.config import settings
@@ -140,7 +141,7 @@ def monitor_check_workers() -> dict:
     return {"alive": alive}
 
 
-@celery_app.task(name="strix.run")
+@celery_app.task(name="strix.run", base=ResilientTask, **RETRY)
 def strix_run(program_id: int, target: str, instruction: str | None = None) -> dict:
     """يشغّل Strix على هدف واحد (بعد فرض النطاق) ويخزّن نتائجه كـ findings."""
     from api.config import settings

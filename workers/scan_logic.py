@@ -98,7 +98,13 @@ def scan_hosts(
             )
     db.commit()
 
-    raw = tools.nuclei([h.hostname for h in safe]) if safe else []
+    try:
+        raw = tools.nuclei([h.hostname for h in safe]) if safe else []
+    except Exception:
+        # انقطاع/خطأ أثناء الفحص => يُسجَّل كـ failed، لا يُعتبر "لا ثغرات".
+        scan_run.status = ScanStatus.failed
+        db.commit()
+        raise
     if output_dir:
         _save_raw(output_dir, scan_run.id, raw)
 

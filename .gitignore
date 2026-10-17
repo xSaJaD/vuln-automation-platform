@@ -6,6 +6,7 @@
 # Scan outputs (never commit raw findings or recon data)
 strix_runs/
 reports/out/
+backups/
 *.log
 
 # Python

@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 13.**
+**منفّذ: Phase 0 → Phase 14.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -48,8 +48,11 @@
   انظر `docs/DEPLOY.md`.
 - **Phase 13** — **تنبيهات ومراقبة**: تنبيهات Webhook (عند finding حرج/عالي،
   انتهاء فحص، أو انقطاع العمّال)، سجلّات JSON منظّمة، و`GET /health/workers`.
+- **Phase 14** — **المرونة والتعافي**: إعادة محاولة تلقائية (backoff)، dead-letter
+  (`failed_tasks`) للمهام الفاشلة نهائيًا، تسجيل صريح لفشل الفحص كـ `failed`،
+  ونسخ احتياطي دوري لـ Postgres (`make backup`).
 
-المراحل اللاحقة (مرونة، مزامنة النطاق، HackerOne API، RBAC…) غير منفّذة بعد.
+المراحل اللاحقة (مزامنة النطاق، HackerOne API، RBAC…) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 

@@ -33,3 +33,6 @@ migrate:         ## تطبيق migrations
 
 scan-secrets:    ## فحص تسريب الأسرار (يتطلب gitleaks)
 	gitleaks detect --config .gitleaks.toml --no-banner
+
+backup:          ## نسخة احتياطية لقاعدة البيانات (مع retention)
+	bash scripts/backup_db.sh
