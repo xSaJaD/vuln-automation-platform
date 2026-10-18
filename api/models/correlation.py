@@ -33,3 +33,8 @@ class CorrelatedFinding(Base, TimestampMixin):
     cvss_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     cvss_vector: Mapped[str | None] = mapped_column(String(100), nullable=True)
     cvss_manual: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    # فحص التكرار والإرسال (Phase 16)
+    likely_duplicate: Mapped[bool] = mapped_column(Boolean, default=False)
+    duplicate_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    submitted_ref: Mapped[str | None] = mapped_column(String(500), nullable=True)

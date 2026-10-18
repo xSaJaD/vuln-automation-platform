@@ -89,6 +89,9 @@ class CorrelatedFindingOut(BaseModel):
     cvss_score: float | None
     cvss_vector: str | None
     cvss_manual: bool
+    likely_duplicate: bool
+    duplicate_ref: str | None
+    submitted_ref: str | None
 
 
 class TargetIn(BaseModel):

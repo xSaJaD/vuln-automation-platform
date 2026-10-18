@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 15.**
+**منفّذ: Phase 0 → Phase 16.**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -53,8 +53,10 @@
   ونسخ احتياطي دوري لـ Postgres (`make backup`).
 - **Phase 15** — **مزامنة النطاق وقواعد الاشتباك**: يسحب النطاق من HackerOne دوريًا،
   و**أي أصل يخرج من الـ scope يُعطَّل تلقائيًا فيتوقف فحصه**. حقول ROE لكل برنامج.
+- **Phase 16** — **فحص التكرار والإرسال**: يقارن النتائج بتقاريرك السابقة + hacktivity
+  ويعلّم المطابق `likely_duplicate`؛ وإرسال اختياري لـ HackerOne **بموافقة صريحة فقط**.
 
-المراحل اللاحقة (HackerOne API للتكرار والإرسال، RBAC…) غير منفّذة بعد.
+المراحل اللاحقة (RBAC + كشف الحظر) غير منفّذة بعد.
 
 ## نقاط الـ API الحالية
 
@@ -79,6 +81,8 @@
 | GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة (مع CVSS) |
 | POST | `/correlated/{id}/triage` | تغيير الحالة أو CVSS يدويًا (مُسجَّل) |
 | POST | `/correlated/{id}/report` | توليد مسودة تقرير Markdown (للمؤكَّد فقط) |
+| POST | `/programs/{id}/check-duplicates` | فحص التكرار مقابل HackerOne |
+| POST | `/correlated/{id}/submit` | إرسال لـ HackerOne (موافقة صريحة) |
 | POST | `/programs/{id}/pipeline` | تشغيل السلسلة الكاملة (recon→scan→correlate) |
 | POST | `/programs/{id}/credentials` | تخزين اعتماد grey-box **مُشفّرًا** |
 | GET | `/programs/{id}/credentials` | قائمة الاعتمادات (بدون السر) |

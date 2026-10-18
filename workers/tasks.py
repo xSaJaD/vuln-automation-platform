@@ -166,6 +166,25 @@ def scope_sync_all() -> dict:
         db.close()
 
 
+@celery_app.task(name="dup.check", base=ResilientTask, **RETRY)
+def dup_check(program_id: int) -> dict:
+    """يفحص تكرار نتائج برنامج مقابل تقارير HackerOne السابقة."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.dedupe import flag_duplicates
+    from workers.hackerone import fetch_prior_reports
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        priors = fetch_prior_reports(program.handle)
+        return {"flagged": flag_duplicates(db, program, priors)}
+    finally:
+        db.close()
+
+
 @celery_app.task(name="monitor.check_workers")
 def monitor_check_workers() -> dict:
     """مراقبة دورية: يُنبّه إن لم يوجد أي worker نشط."""

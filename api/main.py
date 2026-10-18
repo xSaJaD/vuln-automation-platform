@@ -23,6 +23,7 @@ from api.routers import (
     report,
     scan,
     strix,
+    submit,
     targets,
     triage,
 )
@@ -57,6 +58,7 @@ app.include_router(triage.router)
 app.include_router(report.router)
 app.include_router(pipeline.router)
 app.include_router(credentials.router)
+app.include_router(submit.router)
 
 
 _limiter = RateLimiter(settings.rate_limit_per_minute)
