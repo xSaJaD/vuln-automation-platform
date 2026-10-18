@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 from api.models.correlation import CorrelatedFinding
 from api.models.program import Program
@@ -109,10 +110,22 @@ def render_report(finding: CorrelatedFinding, program: Program) -> str:
 """
 
 
+def _safe_segment(name: str) -> str:
+    """يمنع Path Traversal: يُبقي أحرفًا آمنة فقط ويمنع '.' و '..'."""
+    seg = re.sub(r"[^A-Za-z0-9._-]", "_", (name or "").strip()).lstrip(".")
+    return (seg or "program")[:100]
+
+
 def save_report(out_dir: str, program: Program, finding: CorrelatedFinding, markdown: str) -> str:
-    folder = os.path.join(out_dir, program.handle)
+    folder = os.path.join(out_dir, _safe_segment(program.handle))
     os.makedirs(folder, exist_ok=True)
-    path = os.path.join(folder, f"finding-{finding.id}.md")
+    path = os.path.join(folder, f"finding-{int(finding.id)}.md")
+
+    # دفاع متعدّد الطبقات: تأكّد أن المسار النهائي داخل out_dir.
+    base = os.path.abspath(out_dir)
+    if os.path.commonpath([base, os.path.abspath(path)]) != base:
+        raise ValueError("مسار تقرير غير آمن")
+
     with open(path, "w", encoding="utf-8") as fh:
         fh.write(markdown)
     return path

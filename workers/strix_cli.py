@@ -52,6 +52,9 @@ def run_strix_cli(
     budget: str | None = None,
     timeout: int = 1800,
 ) -> StrixResult:
+    from workers.tools import safe_arg
+
+    target = safe_arg(target)  # يمنع Argument Injection في strix --target
     if shutil.which("strix") is None:
         raise RuntimeError("strix غير مثبّت في بيئة التشغيل (worker)")
 

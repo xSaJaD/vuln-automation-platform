@@ -22,8 +22,22 @@ def _require(binary: str) -> None:
         raise ToolNotFound(f"{binary} غير مثبّت في بيئة التشغيل (worker)")
 
 
+def safe_arg(value: str) -> str:
+    """يمنع Argument Injection: يرفض القيمة التي تبدأ بـ '-' أو تحوي مسافات/تحكّم.
+
+    هدف/مضيف مثل '-oN/tmp/x' قد يُفسَّر كـ flag للأداة. نرفضه قبل التمرير.
+    """
+    v = (value or "").strip()
+    if not v or v.startswith("-"):
+        raise ValueError(f"قيمة غير آمنة (احتمال حقن وسيط): {value!r}")
+    if any(c.isspace() or ord(c) < 32 for c in v):
+        raise ValueError(f"قيمة تحوي مسافات/محارف تحكّم: {value!r}")
+    return v
+
+
 def run_subfinder(domain: str, timeout: int = DEFAULT_TIMEOUT) -> list[str]:
     """يكتشف النطاقات الفرعية لنطاق معيّن."""
+    domain = safe_arg(domain)
     _require("subfinder")
     proc = subprocess.run(
         ["subfinder", "-d", domain, "-silent"],
@@ -85,6 +99,7 @@ def run_nuclei(
 
 def run_naabu(host: str, timeout: int = DEFAULT_TIMEOUT) -> list[int]:
     """يفحص المنافذ (connect scan لتجنّب صلاحيات raw socket)."""
+    host = safe_arg(host)
     _require("naabu")
     proc = subprocess.run(
         ["naabu", "-host", host, "-silent", "-json", "-scan-type", "c", "-top-ports", "100"],
