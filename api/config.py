@@ -39,5 +39,8 @@ class Settings(BaseSettings):
     hackerone_api_username: str = ""
     hackerone_api_token: str = ""
 
+    # RBAC (اختياري)
+    auth_enabled: bool = False
+
 
 settings = Settings()

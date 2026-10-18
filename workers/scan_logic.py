@@ -114,6 +114,11 @@ def scan_hosts(
         db.add(finding)
         findings.append(finding)
 
+    # كشف الحظر: مضيف محظور بلا نتائج => inconclusive وليس clean.
+    from api.services.block_detection import scan_outcome
+
+    blocked = any(h.block_status == "blocked" for h in safe)
+    scan_run.outcome = scan_outcome(len(findings), blocked)
     scan_run.status = ScanStatus.done
     db.commit()
     return scan_run, findings

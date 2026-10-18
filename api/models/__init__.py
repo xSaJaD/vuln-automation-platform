@@ -1,5 +1,6 @@
 """تجميع كل النماذج حتى تُعبّأ Base.metadata (مهم لـ Alembic autogenerate)."""
 
+from api.models.api_key import ApiKey
 from api.models.audit import AuditLog
 from api.models.base import Base
 from api.models.correlation import CorrelatedFinding
@@ -25,5 +26,6 @@ __all__ = [
     "CorrelatedFinding",
     "Credential",
     "FailedTask",
+    "ApiKey",
     "AuditLog",
 ]

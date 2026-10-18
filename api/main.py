@@ -8,13 +8,14 @@ Phase 2: Scope Gatekeeper يحرس إنشاء الأهداف.
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 
 from api import __version__
 from api.config import settings
 from api.db import init_db
 from api.routers import (
+    auth,
     correlate,
     credentials,
     pipeline,
@@ -27,6 +28,7 @@ from api.routers import (
     targets,
     triage,
 )
+from api.services.auth import auth_guard
 from api.services.ratelimit import RateLimiter
 
 
@@ -46,6 +48,7 @@ app = FastAPI(
     version=__version__,
     description="منصة self-hosted لأتمتة فحص الثغرات ضمن نطاق مصرّح به فقط.",
     lifespan=lifespan,
+    dependencies=[Depends(auth_guard)],  # RBAC (فعّال عند AUTH_ENABLED)
 )
 
 app.include_router(programs.router)
@@ -59,6 +62,7 @@ app.include_router(report.router)
 app.include_router(pipeline.router)
 app.include_router(credentials.router)
 app.include_router(submit.router)
+app.include_router(auth.router)
 
 
 _limiter = RateLimiter(settings.rate_limit_per_minute)

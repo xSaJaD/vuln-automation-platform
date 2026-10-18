@@ -57,6 +57,7 @@ class HostOut(BaseModel):
     open_ports: str | None
     source: str
     in_scope: bool
+    block_status: str | None
 
 
 class FindingOut(BaseModel):

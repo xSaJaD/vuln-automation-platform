@@ -25,3 +25,5 @@ class Host(Base, TimestampMixin):
     source: Mapped[str] = mapped_column(String(50), default="subfinder")
     # نتيجة Scope Gatekeeper — المضيفات خارج النطاق لا تُفحص إطلاقًا.
     in_scope: Mapped[bool] = mapped_column(Boolean, default=False)
+    # كشف الحظر: "blocked" أو "clean" (Phase 17).
+    block_status: Mapped[str | None] = mapped_column(String(20), nullable=True)

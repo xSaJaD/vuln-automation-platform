@@ -88,6 +88,10 @@ def probe_hosts(db: Session, program: Program, tools: ReconTools) -> list[Host]:
         tech = r.get("tech") or r.get("technologies")
         host.tech = ",".join(tech) if isinstance(tech, list) else (tech or None)
         host.ip = r.get("host") if r.get("host") != host.hostname else host.ip
+        # كشف الحظر (WAF) من كود الحالة والعنوان.
+        from api.services.block_detection import looks_blocked
+
+        host.block_status = "blocked" if looks_blocked(host.http_status, host.title or "") else "clean"
 
     db.commit()
     return [h for h in scoped if h.is_live]

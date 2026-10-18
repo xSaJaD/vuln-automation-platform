@@ -11,7 +11,7 @@
 
 ## الحالة
 
-**منفّذ: Phase 0 → Phase 16.**
+**منفّذ: Phase 0 → Phase 17 — الخطة كاملة ✅**
 
 - **Phase 0** — هيكلية المستودع، `docker-compose` (Postgres + Redis + API)، `GET /health`.
 - **Phase 1** — نماذج البيانات (`programs`, `scope_assets`, `targets`, `hosts`,
@@ -55,8 +55,8 @@
   و**أي أصل يخرج من الـ scope يُعطَّل تلقائيًا فيتوقف فحصه**. حقول ROE لكل برنامج.
 - **Phase 16** — **فحص التكرار والإرسال**: يقارن النتائج بتقاريرك السابقة + hacktivity
   ويعلّم المطابق `likely_duplicate`؛ وإرسال اختياري لـ HackerOne **بموافقة صريحة فقط**.
-
-المراحل اللاحقة (RBAC + كشف الحظر) غير منفّذة بعد.
+- **Phase 17** — **RBAC + كشف الحظر**: صلاحيات admin/viewer عبر API keys (اختياري عبر
+  `AUTH_ENABLED`)، وكشف WAF — الاستجابة المحظورة تُصنَّف `inconclusive` لا `clean`.
 
 ## نقاط الـ API الحالية
 
@@ -64,6 +64,7 @@
 |---|---|---|
 | GET | `/` → `/dashboard` | **لوحة التحكم (Strix Console)** |
 | GET | `/health` · `/health/workers` | فحص صحة + حالة العمّال |
+| POST | `/auth/keys` · GET | إنشاء/عرض مفاتيح API (RBAC) |
 | POST | `/programs` | إنشاء برنامج |
 | GET | `/programs` · `/programs/{id}` | قائمة / تفاصيل |
 | POST | `/programs/{id}/scope` | إضافة asset للنطاق (in/out of scope) |

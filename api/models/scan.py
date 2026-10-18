@@ -35,6 +35,8 @@ class ScanRun(Base, TimestampMixin):
     run_name: Mapped[str] = mapped_column(String(200))
     tool: Mapped[str] = mapped_column(String(50))  # nuclei | strix | recon ...
     status: Mapped[ScanStatus] = mapped_column(Enum(ScanStatus), default=ScanStatus.queued)
+    # النتيجة النهائية: findings | clean | inconclusive (Phase 17).
+    outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
 
 class Finding(Base, TimestampMixin):
