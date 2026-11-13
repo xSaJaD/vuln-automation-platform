@@ -46,6 +46,15 @@ class AutoIdorIn(BaseModel):
     seed_urls: list[str]      # صفحات مصادَقة للحساب A تُزحف لاستخراج مراجع الكائنات
 
 
+class DiscoverEndpointsIn(BaseModel):
+    seed_urls: list[str]      # صفحات تُزحف لقراءة كل JS واستخراج الـ endpoints
+
+
+class AuthPentestIn(BaseModel):
+    seed: str                 # نطاق/رابط ضمن النطاق للسلسلة المصادَقة الكاملة
+    count: int = DEFAULT_ACCOUNTS
+
+
 class ResourceIn(BaseModel):
     url: str
     owner_label: str          # الحساب المالك، مثل "idor-a"
@@ -129,6 +138,54 @@ def auto_idor(program_id: int, payload: AutoIdorIn, db: Session = Depends(get_db
         from workers.celery_app import celery_app
 
         task = celery_app.send_task("idor.auto", args=[program_id, payload.seed_urls])
+    except Exception as exc:
+        raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
+    return {"status": "queued", "task_id": task.id}
+
+
+@router.post("/programs/{program_id}/discover-endpoints")
+def discover_endpoints(program_id: int, payload: DiscoverEndpointsIn, db: Session = Depends(get_db)):
+    """يقرأ كل ملفات JS ويستخرج كل الـ endpoints ويخزّنها للفحص (ضمن النطاق)."""
+    program = db.get(Program, program_id)
+    if not program:
+        raise HTTPException(404, "البرنامج غير موجود")
+    if not payload.seed_urls:
+        raise HTTPException(422, "لزوم صفحة بذرة واحدة على الأقل")
+    for url in payload.seed_urls:
+        decision = check_target(db, program, url, actor="js-discovery-trigger")
+        if not decision.allowed:
+            raise HTTPException(403, f"البذرة خارج النطاق ({url}): {decision.reason}")
+    try:
+        from workers.celery_app import celery_app
+
+        task = celery_app.send_task("endpoints.discover_js", args=[program_id, payload.seed_urls])
+    except Exception as exc:
+        raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
+    return {"status": "queued", "task_id": task.id}
+
+
+@router.post("/programs/{program_id}/auth-pentest")
+def auth_pentest(program_id: int, payload: AuthPentestIn, db: Session = Depends(get_db)):
+    """السلسلة الكاملة: اكتشاف صفحة التسجيل → إنشاء حساب → قراءة JS → فحص IDOR مصادَق.
+
+    تتطلب إقرار ROE (allow_account_provisioning) + نطاق بريد، وكل شيء ضمن النطاق.
+    """
+    program = db.get(Program, program_id)
+    if not program:
+        raise HTTPException(404, "البرنامج غير موجود")
+    if not program.allow_account_provisioning:
+        raise HTTPException(403, "إنشاء الحسابات غير مُفعَّل — فعّل allow_account_provisioning (ROE)")
+    if not program.account_email_domain:
+        raise HTTPException(422, "عيّن account_email_domain (نطاق بريد يملكه الباحث) أولًا")
+    if payload.count > MAX_ACCOUNTS:
+        raise HTTPException(422, f"الحدّ الأقصى {MAX_ACCOUNTS} حسابات")
+    decision = check_target(db, program, payload.seed, actor="auth-pentest-trigger")
+    if not decision.allowed:
+        raise HTTPException(403, f"البذرة خارج النطاق: {decision.reason}")
+    try:
+        from workers.celery_app import celery_app
+
+        task = celery_app.send_task("pentest.authenticated", args=[program_id, payload.seed, payload.count])
     except Exception as exc:
         raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
     return {"status": "queued", "task_id": task.id}

@@ -76,6 +76,13 @@
   يُتخطّى** (قاعدة AGENTS §0): الإنشاء يتوقّف ويُعلَّم `captcha_blocked` ويُترك للتجهيز
   اليدوي عبر `credentials`.
 
+- **Phase 21** — **استخراج endpoints من JS + سلسلة مصادَقة كاملة**: يقرأ كل ملفات
+  JavaScript (خارجية ومضمّنة) ويستخرج كل الـ endpoints (fetch/axios/XHR + ثوابت
+  المسارات) — فيكشف سطح هجوم تطبيقات SPA الذي يفوت الزحف العادي. الـ endpoints
+  المكتشفة ضمن النطاق تُخزَّن على المضيفات فتدخل فحص nuclei تلقائيًا. و`auth-pentest`
+  يربط كل شيء: يكتشف صفحة التسجيل، ينشئ حسابين، يقرأ كل JS، ثم يفحص IDOR مصادَقًا
+  على الـ endpoints المكتشفة. (CAPTCHA يُكتشَف ولا يُتخطّى.)
+
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
@@ -98,6 +105,8 @@
 | POST | `/programs/{id}/accounts/provision` | إنشاء حسابَي اختبار (recipe يدوي) |
 | POST | `/programs/{id}/accounts/auto-provision` | **زحف يكتشف نموذج التسجيل** ثم ينشئ الحسابات |
 | POST | `/programs/{id}/idor/auto` | **زحف يكتشف مراجع IDOR** للحساب A ثم يفحصها بجلسة B |
+| POST | `/programs/{id}/discover-endpoints` | **قراءة كل ملفات JS واستخراج كل الـ endpoints** |
+| POST | `/programs/{id}/auth-pentest` | **سلسلة كاملة**: اكتشاف تسجيل → حساب → JS → IDOR مصادَق |
 | GET | `/programs/{id}/accounts` | قائمة الحسابات المُنشأة (بدون أسرار) |
 | POST | `/programs/{id}/idor` | فحص IDOR تفاضلي (مورد A يُقرأ بجلسة B) |
 | POST | `/programs/{id}/verify` | إعادة إنتاج نتائج nuclei (verified / confidence) |

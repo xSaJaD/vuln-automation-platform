@@ -36,6 +36,9 @@ class _FormParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.forms: list[Form] = []
         self.links: list[str] = []
+        self.scripts: list[str] = []      # روابط <script src>
+        self._in_script = False
+        self.inline_scripts: list[str] = []
         self._cur: Form | None = None
 
     def handle_starttag(self, tag, attrs):
@@ -50,14 +53,43 @@ class _FormParser(HTMLParser):
             )
         elif tag == "a" and a.get("href"):
             self.links.append(a["href"])
+        elif tag == "script":
+            if a.get("src"):
+                self.scripts.append(a["src"])
+            else:
+                self._in_script = True
+
+    def handle_data(self, data):
+        if self._in_script and data.strip():
+            self.inline_scripts.append(data)
 
     def handle_endtag(self, tag):
         if tag == "form":
             self._cur = None
+        elif tag == "script":
+            self._in_script = False
 
 
 def parse(html: str, base_url: str = "") -> tuple[list[Form], list[str]]:
     """يرجّع (forms, absolute_links). الأخطاء في HTML تُتجاهَل بأمان."""
+    pr = _parse(html, base_url)
+    return pr.forms, pr.links
+
+
+@dataclass
+class ParsedPage:
+    forms: list[Form]
+    links: list[str]
+    scripts: list[str]          # روابط ملفات JS خارجية (مطلقة)
+    inline_scripts: list[str]   # أكواد JS المضمّنة
+
+
+def parse_page(html: str, base_url: str = "") -> ParsedPage:
+    """تحليل كامل: forms + links + <script src> + inline scripts."""
+    return _parse(html, base_url)
+
+
+def _parse(html: str, base_url: str) -> ParsedPage:
     p = _FormParser()
     try:
         p.feed(html or "")
@@ -68,5 +100,7 @@ def parse(html: str, base_url: str = "") -> tuple[list[Form], list[str]]:
             form.action = urljoin(base_url, form.action)
         elif not form.action:
             form.action = base_url
-    links = [urljoin(base_url, h) for h in p.links] if base_url else p.links
-    return p.forms, links
+    links = [urljoin(base_url, h) for h in p.links] if base_url else list(p.links)
+    scripts = [urljoin(base_url, s) for s in p.scripts] if base_url else list(p.scripts)
+    return ParsedPage(forms=p.forms, links=links, scripts=scripts,
+                      inline_scripts=list(p.inline_scripts))

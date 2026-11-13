@@ -371,3 +371,56 @@ def idor_auto(program_id: int, seed_urls: list[str]) -> dict:
                 "outcome": scan_run.outcome, "findings": len(findings)}
     finally:
         db.close()
+
+
+@celery_app.task(name="endpoints.discover_js", base=ResilientTask, **RETRY)
+def endpoints_discover_js(program_id: int, seed_urls: list[str]) -> dict:
+    """يقرأ كل ملفات JS للموقع ويستخرج كل الـ endpoints ويخزّنها للفحص."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.scope_gatekeeper import rules_for
+    from workers.account_http import make_js_fetcher
+    from workers.endpoints_db import store_endpoints
+    from workers.js_discovery import discover_js_endpoints
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        js = discover_js_endpoints(seed_urls, make_js_fetcher(), rules_for(program))
+        out = store_endpoints(db, program, js.endpoints)
+        out["scripts_read"] = len(js.scripts_read)
+        out["pages_crawled"] = len(js.pages_crawled)
+        return out
+    finally:
+        db.close()
+
+
+@celery_app.task(name="pentest.authenticated", base=ResilientTask, **RETRY)
+def pentest_authenticated(program_id: int, seed: str, count: int = 2) -> dict:
+    """السلسلة الكاملة: اكتشاف تسجيل → إنشاء حساب → قراءة JS → فحص IDOR مصادَق."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.scope_gatekeeper import rules_for
+    from workers.account_http import (
+        make_idor_requester,
+        make_js_fetcher,
+        make_page_fetcher,
+        register_over_http,
+    )
+    from workers.auth_pentest import run_authenticated_pentest
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        return run_authenticated_pentest(
+            db, program, seed,
+            page_fetch=make_page_fetcher(), js_fetch=make_js_fetcher(),
+            register_fn=register_over_http, idor_requester=make_idor_requester(),
+            rules=rules_for(program), count=count,
+        )
+    finally:
+        db.close()

@@ -84,3 +84,18 @@ def make_page_fetcher():
                                final_url=str(resp.url))
 
     return fetch
+
+
+def make_js_fetcher():
+    """يرجّع fetch(url) -> Fetched لاستخراج الـ endpoints من JS (GET يتبع التحويلات)."""
+    from workers.js_discovery import Fetched
+
+    def fetch(url: str) -> Fetched:
+        with httpx.Client(
+            follow_redirects=True, timeout=TIMEOUT, headers={"User-Agent": USER_AGENT}
+        ) as client:
+            resp = client.get(url)
+            return Fetched(status_code=resp.status_code, body=resp.text[:500000],
+                           final_url=str(resp.url))
+
+    return fetch
