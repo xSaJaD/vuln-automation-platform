@@ -32,14 +32,30 @@ def _parse_output(out_dir: str) -> list[dict]:
     return vulns
 
 
+_NAME_KEYS = ("title", "type", "name")
+_SEVERITIES = {"info", "low", "medium", "high", "critical"}
+
+
+def _is_vuln(item) -> bool:
+    """عنصر يُعدّ ثغرة فقط إن كان له اسم وخطورة صالحة.
+
+    يمنع تحويل ملفات الحالة/الإعدادات (أي dict فيه title) إلى findings وهمية.
+    """
+    if not isinstance(item, dict):
+        return False
+    if not any(isinstance(item.get(k), str) and item[k].strip() for k in _NAME_KEYS):
+        return False
+    return str(item.get("severity") or "").strip().lower() in _SEVERITIES
+
+
 def _extract(data) -> list[dict]:
     if isinstance(data, list):
-        return [v for v in data if isinstance(v, dict)]
+        return [v for v in data if _is_vuln(v)]
     if isinstance(data, dict):
         for key in ("vulnerabilities", "findings", "results"):
             if isinstance(data.get(key), list):
-                return [v for v in data[key] if isinstance(v, dict)]
-        if "severity" in data or "title" in data:
+                return [v for v in data[key] if _is_vuln(v)]
+        if _is_vuln(data):
             return [data]
     return []
 

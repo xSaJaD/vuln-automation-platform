@@ -12,6 +12,8 @@ class ProgramIn(BaseModel):
     policy_url: str | None = None
     roe_notes: str | None = None
     rate_limit_per_min: int | None = None
+    allow_account_provisioning: bool = False
+    account_email_domain: str | None = None
 
 
 class ProgramOut(BaseModel):
@@ -24,6 +26,8 @@ class ProgramOut(BaseModel):
     active: bool
     roe_notes: str | None
     rate_limit_per_min: int | None
+    allow_account_provisioning: bool = False
+    account_email_domain: str | None = None
 
 
 class ScopeAssetIn(BaseModel):
@@ -60,6 +64,20 @@ class HostOut(BaseModel):
     source: str
     in_scope: bool
     block_status: str | None
+    urls: str | None = None
+    dns_wildcard: bool = False
+
+
+class ScanRunOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    program_id: int
+    run_name: str
+    tool: str
+    status: str
+    outcome: str | None
+    error: str | None
+    blocked_hosts: str | None
 
 
 class FindingOut(BaseModel):
@@ -74,6 +92,9 @@ class FindingOut(BaseModel):
     source_tool: str
     confirmed_by_strix: bool
     status: str
+    vuln_class: str | None = None
+    cwe: str | None = None
+    curl_command: str | None = None
 
 
 class CorrelatedFindingOut(BaseModel):
@@ -95,6 +116,11 @@ class CorrelatedFindingOut(BaseModel):
     likely_duplicate: bool
     duplicate_ref: str | None
     submitted_ref: str | None
+    vuln_class: str | None = None
+    cwe: str | None = None
+    confidence: str = "low"
+    verified: bool = False
+    reproduction: str | None = None
 
     @computed_field  # درجة ثقة بالتطابق المتقاطع + التأكيد النشط (0–100).
     @property

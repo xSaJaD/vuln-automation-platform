@@ -1,6 +1,6 @@
 # مكتبات التطوير والاختبار المحلي فقط (بدون Docker).
-# psycopg و celery و redis يحتاجهم تشغيل الحاويات فقط — مو مطلوبين محليًا،
-# لأن الاختبارات تستخدم SQLite وأدوات وهمية.
+# psycopg و redis يحتاجهم تشغيل الحاويات فقط. celery مطلوب لاستيراد workers.tasks
+# في الاختبارات (بدون broker). الاختبارات تستخدم SQLite وأدوات وهمية.
 
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
@@ -11,3 +11,4 @@ alembic==1.13.3
 cryptography>=43,<46
 pytest==8.3.3
 httpx==0.27.2
+celery==5.4.0

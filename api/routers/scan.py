@@ -39,3 +39,28 @@ def list_findings(program_id: int, db: Session = Depends(get_db)):
         .order_by(Finding.id.desc())
     )
     return list(db.scalars(stmt))
+
+
+@router.post("/programs/{program_id}/verify")
+def trigger_verify(program_id: int, db: Session = Depends(get_db)):
+    """يعيد إنتاج نتائج nuclei غير المتحقَّق منها (نفس القالب/الهدف، ضمن النطاق)."""
+    if not db.get(Program, program_id):
+        raise HTTPException(404, "البرنامج غير موجود")
+
+    try:
+        from workers.celery_app import celery_app
+
+        task = celery_app.send_task("verify.run", args=[program_id])
+    except Exception as exc:
+        raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
+
+    return {"status": "queued", "task_id": task.id}
+
+
+@router.get("/programs/{program_id}/scan-runs", response_model=list[schemas.ScanRunOut])
+def list_scan_runs(program_id: int, db: Session = Depends(get_db)):
+    """حالة كل تشغيل: failed / clean / inconclusive / findings + سبب الفشل."""
+    if not db.get(Program, program_id):
+        raise HTTPException(404, "البرنامج غير موجود")
+    stmt = select(ScanRun).where(ScanRun.program_id == program_id).order_by(ScanRun.id.desc())
+    return list(db.scalars(stmt))

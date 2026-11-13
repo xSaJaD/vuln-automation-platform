@@ -8,6 +8,8 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from api.models.correlation import CorrelatedFinding
+from api.services.scope_matching import host_of
+from api.services.vuln_class import classify
 
 
 def _norm(s) -> str:
@@ -22,8 +24,15 @@ def is_duplicate(finding, priors):
         return None
     for p in priors:
         asset = _norm(p.asset)
-        host_match = bool(asset) and (asset == fhost or fhost.endswith("." + asset) or asset in fhost)
-        type_match = bool(ftype) and ftype.split()[0] in _norm(p.title)
+        asset = host_of(asset) or asset
+        if asset.startswith("*."):
+            asset = asset[2:]
+        # تطابق تام أو نطاق فرعي فقط — لا مطابقة جزئية (a.com لا يطابق data.com).
+        host_match = bool(asset) and (asset == fhost or fhost.endswith("." + asset))
+        # النوع يُقارَن بالصنف الموحّد (SQLi == "SQL injection")، وإلا بالاسم كاملًا.
+        fclass = _norm(_get(finding, "vuln_class")) or classify(ftype)[0]
+        title = _norm(p.title)
+        type_match = bool(ftype) and (classify(title)[0] == fclass or ftype in title)
         if host_match and type_match:
             return p
     return None

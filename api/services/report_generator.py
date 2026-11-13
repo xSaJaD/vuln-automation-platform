@@ -88,6 +88,8 @@ def render_report(finding: CorrelatedFinding, program: Program) -> str:
 - **CVSS:** {cvss}
 - **المصادر:** {finding.sources}
 - **مؤكَّد بـ Strix:** {'نعم' if finding.confirmed_by_strix else 'لا'}
+- **CWE:** {finding.cwe or '—'}
+- **الثقة:** {finding.confidence or 'low'} ({'أُعيد إنتاجه آليًا' if finding.verified else 'لم يُتحقَّق منه آليًا — تحقّق يدويًا'})
 
 ## الوصف
 {info['desc']}

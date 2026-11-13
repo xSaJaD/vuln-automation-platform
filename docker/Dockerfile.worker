@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpcap-dev \
     && rm -rf /var/lib/apt/lists/*
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest \
     && go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest \
+    && go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest \
     && go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest \
     && go install -v github.com/projectdiscovery/katana/cmd/katana@latest \
     && go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
@@ -29,7 +30,7 @@ RUN pip install --no-cache-dir strix-agent
 
 # ننسخ أدوات ProjectDiscovery بعد pip حتى تفوز httpx مال PD على httpx مال بايثون
 # (كلاهما /usr/local/bin/httpx — الترتيب مهم).
-COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/naabu /go/bin/katana /go/bin/nuclei /usr/local/bin/
+COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/dnsx /go/bin/naabu /go/bin/katana /go/bin/nuclei /usr/local/bin/
 
 # نثبّت قوالب nuclei وقت البناء حتى تكون جاهزة دائمًا (لا تُفقد عند إعادة إنشاء
 # الحاوية بـ docker compose down). يحتاج شبكة وقت البناء.
