@@ -311,3 +311,63 @@ def idor_run(program_id: int, resources: list[dict]) -> dict:
                 "outcome": scan_run.outcome, "findings": len(findings)}
     finally:
         db.close()
+
+
+@celery_app.task(name="accounts.discover_provision", base=ResilientTask, **RETRY)
+def accounts_discover_provision(program_id: int, seed: str, count: int = 2) -> dict:
+    """يزحف الهدف لاكتشاف نموذج التسجيل تلقائيًا ثم ينشئ الحسابات. ROE + نطاق إلزاميان.
+
+    عند كشف CAPTCHA لا يُتخطّى — يُبلَّغ ويُترك للتجهيز اليدوي.
+    """
+    from api.db import SessionLocal
+    from api.models.audit import AuditLog
+    from api.models.program import Program
+    from workers.account_http import make_page_fetcher, register_over_http
+    from workers.account_logic import provision_accounts
+    from workers.form_discovery import discover_registration
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+
+        disc = discover_registration(seed, make_page_fetcher())
+        db.add(AuditLog(action="register_form_discovery", target_value=seed,
+                        program_id=program_id,
+                        decision="allow" if disc.recipe else "deny", reason=disc.reason,
+                        actor="discover"))
+        db.commit()
+        if disc.recipe is None:
+            return {"status": "no_form", "reason": disc.reason, "captcha": disc.captcha}
+        if disc.captcha:
+            return {"status": "captcha_blocked", "provider": disc.captcha,
+                    "page": disc.page_url,
+                    "reason": "لا يُتخطّى CAPTCHA — جهّز الجلسة يدويًا عبر credentials"}
+
+        accts = provision_accounts(db, program, disc.recipe, register_over_http, count=count)
+        return {"status": "done", "register_url": disc.recipe.register_url,
+                "created": sum(1 for a in accts if a.status == "created"),
+                "accounts": [{"label": a.label, "status": a.status} for a in accts]}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="idor.auto", base=ResilientTask, **RETRY)
+def idor_auto(program_id: int, seed_urls: list[str]) -> dict:
+    """اكتشاف مراجع كائنات الحساب A بالزحف ثم فحص IDOR تفاضلي بجلسة B."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import make_idor_requester
+    from workers.idor_db import run_auto_idor
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        scan_run, findings = run_auto_idor(db, program, seed_urls, make_idor_requester())
+        return {"scan_run_id": scan_run.id, "status": scan_run.status.value,
+                "outcome": scan_run.outcome, "findings": len(findings)}
+    finally:
+        db.close()

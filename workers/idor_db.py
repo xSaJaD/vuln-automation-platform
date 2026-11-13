@@ -87,3 +87,50 @@ def run_idor(
     scan_run.status = ScanStatus.done
     db.commit()
     return scan_run, findings
+
+
+def _account_a(db: DbSession, program: Program) -> tuple[Session, str] | None:
+    """جلسة أول حساب مُنشأ + علامته (معرّفه) لإثبات ملكيته للموارد."""
+    cipher = get_cipher()
+    if cipher is None:
+        return None
+    row = (
+        db.query(ProvisionedAccount)
+        .filter_by(program_id=program.id, status="created")
+        .order_by(ProvisionedAccount.label)
+        .first()
+    )
+    if not row or not row.session_encrypted:
+        return None
+    data = json.loads(cipher.decrypt(row.session_encrypted))
+    return Session(label=row.label, cookies=data.get("cookies") or {},
+                   token=data.get("token")), row.identifier
+
+
+def run_auto_idor(
+    db: DbSession, program: Program, seed_urls: list[str], requester: Requester,
+    actor: str = "idor-auto",
+) -> tuple[ScanRun, list[Finding]]:
+    """يكتشف موارد الحساب A بالزحف ثم يشغّل الفحص التفاضلي. يتطلب حسابين مُنشأين."""
+    from workers.idor_discovery import discover_owned_resources
+
+    pair = _account_a(db, program)
+    sessions = _load_sessions(db, program)
+    if pair is None or len([s for s in sessions if s.label]) < 2:
+        scan_run = ScanRun(program_id=program.id, run_name=f"idor-{program.handle}",
+                           tool="idor", status=ScanStatus.failed,
+                           error="يلزم حسابان مُنشآن (created) لاختبار IDOR")
+        db.add(scan_run)
+        db.commit()
+        return scan_run, []
+
+    session_a, marker = pair
+    resources = discover_owned_resources(
+        session_a, marker, seed_urls, requester, rules_for(program)
+    )
+    db.add(AuditLog(action="idor_discover", target_value=str(len(resources)),
+                    program_id=program.id, decision="allow",
+                    reason=f"{len(resources)} مرجع كائن مكتشَف بزحف الحساب {session_a.label}",
+                    actor=actor))
+    db.commit()
+    return run_idor(db, program, resources, requester, actor=actor)

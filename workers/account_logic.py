@@ -44,10 +44,13 @@ class AccountRecipe:
     email_field: str = "email"
     password_field: str = "password"
     username_field: str | None = None
+    confirm_password_field: str | None = None  # تأكيد كلمة المرور (نماذج التسجيل)
     success_status: tuple[int, ...] = (200, 201, 302)
     success_marker: str | None = None          # نص يجب وجوده في جسم الرد (اختياري)
     login_url: str | None = None               # لجلب جلسة بعد التسجيل (اختياري)
     login_fields: dict[str, str] = field(default_factory=dict)
+    # اكتُشف بالزحف: صفحة النموذج (لإعادة جلب حقول CSRF الطازجة قبل الإرسال).
+    form_page_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -56,6 +59,12 @@ class RegisterRequest:
     method: str
     content_type: str
     data: dict[str, str]
+    # إن وُجد: يُجلب أولًا (GET) لالتقاط حقول CSRF الطازجة وكشف CAPTCHA قبل الإرسال.
+    prefetch_url: str | None = None
+
+
+# ناتج register_fn حين كشف CAPTCHA: المشروع لا يتخطّاه — يتوقّف الإنشاء.
+CAPTCHA_SENTINEL = "__captcha_blocked__"
 
 
 @dataclass
@@ -103,7 +112,10 @@ def _build_request(recipe: AccountRecipe, ident: Identity) -> RegisterRequest:
     data[recipe.password_field] = ident.password
     if recipe.username_field:
         data[recipe.username_field] = ident.username
-    return RegisterRequest(recipe.register_url, recipe.method.upper(), recipe.content_type, data)
+    if recipe.confirm_password_field:
+        data[recipe.confirm_password_field] = ident.password
+    return RegisterRequest(recipe.register_url, recipe.method.upper(), recipe.content_type,
+                           data, prefetch_url=recipe.form_page_url)
 
 
 def _is_success(recipe: AccountRecipe, res: RegisterResult) -> bool:
@@ -175,6 +187,16 @@ def provision_accounts(
             db.add(acct)
             created.append(acct)
             continue
+
+        # CAPTCHA مكتشَف => لا تخطٍّ (AGENTS §0). يُوقف الإنشاء ويُترك للتجهيز اليدوي.
+        if res.body.startswith(CAPTCHA_SENTINEL):
+            provider = res.body.split(":", 1)[-1] if ":" in res.body else "captcha"
+            acct.status = "captcha_blocked"
+            _audit(db, program.id, "account_provision", ident.email, "deny",
+                   f"CAPTCHA ({provider}) — لا يُتخطّى؛ جهّز الجلسة يدويًا", actor)
+            db.add(acct)
+            created.append(acct)
+            break
 
         session = _session_payload(recipe, res, ident, register_fn)
         if _is_success(recipe, res) and session is not None:

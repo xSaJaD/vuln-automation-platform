@@ -70,6 +70,12 @@
   التسجيل يمرّ عبر الحارس، ويتطلب إقرار ROE صريح (`allow_account_provisioning`) +
   نطاق بريد يملكه الباحث. الحسابان يُمرَّران لـ Strix تلقائيًا لفحص IDOR الموجَّه.
 
+- **Phase 20** — **اكتشاف تلقائي + كشف CAPTCHA**: يزحف الهدف فيكتشف نموذج التسجيل
+  ويبني الـ recipe تلقائيًا (مع التقاط حقول CSRF الطازجة قبل الإرسال)، ويكتشف مراجع
+  كائنات الحساب A بالزحف المصادَق فيولّد موارد IDOR تلقائيًا. **CAPTCHA يُكتشَف ولا
+  يُتخطّى** (قاعدة AGENTS §0): الإنشاء يتوقّف ويُعلَّم `captcha_blocked` ويُترك للتجهيز
+  اليدوي عبر `credentials`.
+
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
@@ -89,7 +95,9 @@
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
 | POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
 | POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
-| POST | `/programs/{id}/accounts/provision` | إنشاء حسابَي اختبار تلقائيًا (لـ IDOR) |
+| POST | `/programs/{id}/accounts/provision` | إنشاء حسابَي اختبار (recipe يدوي) |
+| POST | `/programs/{id}/accounts/auto-provision` | **زحف يكتشف نموذج التسجيل** ثم ينشئ الحسابات |
+| POST | `/programs/{id}/idor/auto` | **زحف يكتشف مراجع IDOR** للحساب A ثم يفحصها بجلسة B |
 | GET | `/programs/{id}/accounts` | قائمة الحسابات المُنشأة (بدون أسرار) |
 | POST | `/programs/{id}/idor` | فحص IDOR تفاضلي (مورد A يُقرأ بجلسة B) |
 | POST | `/programs/{id}/verify` | إعادة إنتاج نتائج nuclei (verified / confidence) |

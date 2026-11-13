@@ -37,6 +37,15 @@ class ProvisionIn(BaseModel):
     count: int = DEFAULT_ACCOUNTS
 
 
+class AutoProvisionIn(BaseModel):
+    seed: str                 # نطاق/رابط ضمن النطاق — يُزحف لاكتشاف نموذج التسجيل
+    count: int = DEFAULT_ACCOUNTS
+
+
+class AutoIdorIn(BaseModel):
+    seed_urls: list[str]      # صفحات مصادَقة للحساب A تُزحف لاستخراج مراجع الكائنات
+
+
 class ResourceIn(BaseModel):
     url: str
     owner_label: str          # الحساب المالك، مثل "idor-a"
@@ -71,6 +80,55 @@ def provision(program_id: int, payload: ProvisionIn, db: Session = Depends(get_d
         from workers.celery_app import celery_app
 
         task = celery_app.send_task("accounts.provision", args=[program_id, recipe, payload.count])
+    except Exception as exc:
+        raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
+    return {"status": "queued", "task_id": task.id}
+
+
+@router.post("/programs/{program_id}/accounts/auto-provision")
+def auto_provision(program_id: int, payload: AutoProvisionIn, db: Session = Depends(get_db)):
+    """يكتشف نموذج التسجيل بالزحف ثم ينشئ الحسابات (نفس حواجز /provision)."""
+    program = db.get(Program, program_id)
+    if not program:
+        raise HTTPException(404, "البرنامج غير موجود")
+    if not program.allow_account_provisioning:
+        raise HTTPException(403, "إنشاء الحسابات غير مُفعَّل — فعّل allow_account_provisioning (ROE)")
+    if not program.account_email_domain:
+        raise HTTPException(422, "عيّن account_email_domain (نطاق بريد يملكه الباحث) أولًا")
+    if payload.count > MAX_ACCOUNTS:
+        raise HTTPException(422, f"الحدّ الأقصى {MAX_ACCOUNTS} حسابات")
+
+    decision = check_target(db, program, payload.seed, actor="auto-provision-trigger")
+    if not decision.allowed:
+        raise HTTPException(403, f"البذرة خارج النطاق: {decision.reason}")
+
+    try:
+        from workers.celery_app import celery_app
+
+        task = celery_app.send_task(
+            "accounts.discover_provision", args=[program_id, payload.seed, payload.count])
+    except Exception as exc:
+        raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
+    return {"status": "queued", "task_id": task.id}
+
+
+@router.post("/programs/{program_id}/idor/auto")
+def auto_idor(program_id: int, payload: AutoIdorIn, db: Session = Depends(get_db)):
+    """يكتشف مراجع كائنات الحساب A بالزحف ثم يفحص IDOR (يتطلب حسابين مُنشأين)."""
+    program = db.get(Program, program_id)
+    if not program:
+        raise HTTPException(404, "البرنامج غير موجود")
+    if not payload.seed_urls:
+        raise HTTPException(422, "لزوم صفحة بذرة واحدة على الأقل")
+    for url in payload.seed_urls:
+        decision = check_target(db, program, url, actor="idor-auto-trigger")
+        if not decision.allowed:
+            raise HTTPException(403, f"البذرة خارج النطاق ({url}): {decision.reason}")
+
+    try:
+        from workers.celery_app import celery_app
+
+        task = celery_app.send_task("idor.auto", args=[program_id, payload.seed_urls])
     except Exception as exc:
         raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
     return {"status": "queued", "task_id": task.id}
