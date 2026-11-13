@@ -10,6 +10,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY api/ ./api/
 COPY workers/ ./workers/
+# alembic.ini + migrations حتى يعمل `alembic upgrade head` داخل الحاوية.
+COPY alembic.ini ./
+COPY db/ ./db/
 
 EXPOSE 8000
 
