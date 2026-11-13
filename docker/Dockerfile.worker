@@ -1,12 +1,13 @@
 # حاوية الـ worker — فيها أدوات ProjectDiscovery + Celery.
 
 # ── مرحلة بناء الأدوات ──
-FROM golang:1.22-bookworm AS tools
+FROM golang:1.26-bookworm AS tools
 RUN apt-get update && apt-get install -y --no-install-recommends libpcap-dev \
     && rm -rf /var/lib/apt/lists/*
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest \
     && go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest \
     && go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest \
+    && go install -v github.com/projectdiscovery/katana/cmd/katana@latest \
     && go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 
 # ── صورة التشغيل ──
@@ -19,18 +20,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends libpcap0.8 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/naabu /go/bin/nuclei /usr/local/bin/
-
-# nuclei ينزّل قوالبه تلقائيًا عند أول تشغيل (يحتاج شبكة). لتسريع ذلك مسبقًا
-# يمكن إلغاء تعليق السطر التالي (يتطلب شبكة وقت البناء):
-# RUN nuclei -update-templates -silent || true
-
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # محرك Strix (يشغّل كل فحص في sandbox خاص — يحتاج وصولًا لـ Docker عند التشغيل).
 RUN pip install --no-cache-dir strix-agent
+
+# ننسخ أدوات ProjectDiscovery بعد pip حتى تفوز httpx مال PD على httpx مال بايثون
+# (كلاهما /usr/local/bin/httpx — الترتيب مهم).
+COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/naabu /go/bin/katana /go/bin/nuclei /usr/local/bin/
+
+# نثبّت قوالب nuclei وقت البناء حتى تكون جاهزة دائمًا (لا تُفقد عند إعادة إنشاء
+# الحاوية بـ docker compose down). يحتاج شبكة وقت البناء.
+RUN nuclei -update-templates -silent || true
 
 COPY api/ ./api/
 COPY workers/ ./workers/

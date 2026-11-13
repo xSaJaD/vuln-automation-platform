@@ -13,6 +13,7 @@ router = APIRouter(tags=["pipeline"])
 
 class PipelineIn(BaseModel):
     seed: str  # نطاق جذر ضمن النطاق
+    use_strix: bool = False  # تشغيل محرك Strix بالذكاء الاصطناعي ضمن السلسلة
 
 
 @router.post("/programs/{program_id}/pipeline")
@@ -28,8 +29,10 @@ def trigger_pipeline(program_id: int, payload: PipelineIn, db: Session = Depends
     try:
         from workers.celery_app import celery_app
 
-        task = celery_app.send_task("pipeline.run_full", args=[program_id, payload.seed])
+        task = celery_app.send_task(
+            "pipeline.run_full", args=[program_id, payload.seed, payload.use_strix]
+        )
     except Exception as exc:
         raise HTTPException(503, f"طابور المهام غير متاح: {exc}")
 
-    return {"status": "queued", "task_id": task.id, "seed": payload.seed}
+    return {"status": "queued", "task_id": task.id, "seed": payload.seed, "use_strix": payload.use_strix}

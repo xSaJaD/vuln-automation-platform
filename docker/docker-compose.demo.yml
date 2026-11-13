@@ -1,0 +1,15 @@
+# هدف تجريبي محلي: DVWA (Damn Vulnerable Web Application) — مصرّح به (تملكه وتشغّله أنت).
+# يُشغَّل على نفس شبكة المنصّة فيصله الـ worker باسم المضيف "dvwa".
+#
+# التشغيل مع المنصّة:
+#   docker compose -f docker/docker-compose.yml -f docker/docker-compose.demo.yml up --build -d
+#
+# بعد الإقلاع افتح http://localhost:8080 ، سجّل الدخول admin/password، واضغط
+# "Create / Reset Database" مرّة واحدة لتهيئة DVWA.
+#
+services:
+  dvwa:
+    image: vulnerables/web-dvwa:latest   # ثبّت نسخة محددة للإنتاج
+    restart: unless-stopped
+    ports:
+      - "8080:80"   # متاح على المضيف: http://localhost:8080 (داخليًا dvwa:80)

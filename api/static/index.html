@@ -1,16 +1,16 @@
 <!doctype html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-</head>
-<body>
 <title>IQScan</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="IQScan — لوحة فحص الثغرات ضمن نطاق مصرّح به فقط.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   /* ── IQScan — لوحة فحص الثغرات ───────────────────────────────────────
-     Layout: شريط · خط أنابيب ملوّن متحرّك · بلاطات · (نطاق | رادار)
-             · (خطورة | حارس) · جدول النتائج.
+     خط عربي أنيق (Tajawal) · تبديل لغة AR/EN · مفتاح Strix · حذف نتائج/نطاقات.
      داكن بألوان متشبّعة · كل مرحلة بلونها · حركة محيطة لكل العقد. */
   :root{
     --bg:#0a0e17; --bg-2:#0e1420; --surface:#121a29; --surface-2:#182232;
@@ -21,9 +21,9 @@
     --crit:#ff3860; --high:#ff8a1e; --med:#ffd60a; --low:#35b8ff; --info:#94a2bc;
     --ok:#22d39a; --deny:#ff3860;
     --r:13px; --r-sm:9px;
-    --f-head:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
-    --f-body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
-    --f-mono:"JetBrains Mono","IBM Plex Mono",ui-monospace,monospace;
+    --f-head:"Tajawal","IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --f-body:"Tajawal","IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+    --f-mono:"JetBrains Mono","IBM Plex Sans Arabic",ui-monospace,monospace;
     color-scheme:dark;
   }
   *,*::before,*::after{box-sizing:border-box}
@@ -35,8 +35,9 @@
       radial-gradient(900px 480px at 82% -12%,#13d9bb1a,transparent 65%),
       radial-gradient(760px 440px at 10% 2%,#3b82ff18,transparent 60%),
       var(--bg);
-    color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.55;
-    -webkit-font-smoothing:antialiased;min-height:100%;
+    color:var(--fg);font-family:var(--f-body);font-size:14.5px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+    text-rendering:optimizeLegibility;min-height:100%;
   }
   .wrap{position:relative;z-index:1;max-width:1120px;margin:0 auto;
     padding-left:max(18px,env(safe-area-inset-left,0px));
@@ -46,13 +47,13 @@
   body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);
     z-index:20;background:#090d15}
   header{position:sticky;top:env(safe-area-inset-top,0px);z-index:15;
-    display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
     margin:0 calc(-1*max(18px,env(safe-area-inset-left,0px))) 26px;
     padding:15px max(18px,env(safe-area-inset-left,0px));
     background:#090d15e6;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
   .brand{display:flex;align-items:center;gap:11px;margin-inline-end:auto}
   .mark{width:33px;height:33px;flex:none;filter:drop-shadow(0 0 7px #14e0c055)}
-  .brand h1{font-family:var(--f-head);font-weight:700;font-size:20px;margin:0}
+  .brand h1{font-family:var(--f-head);font-weight:700;font-size:21px;margin:0;letter-spacing:-.01em}
   .brand h1 b{color:var(--blue)}
   .brand .sub{font-family:var(--f-mono);font-size:10px;color:var(--accent);letter-spacing:.18em}
   .status-pill{display:inline-flex;align-items:center;gap:7px;font-family:var(--f-mono);
@@ -60,29 +61,30 @@
     background:var(--surface);color:var(--muted)}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
   .dot.demo{background:var(--med);box-shadow:0 0 8px var(--med)}
-  select,input{font-family:var(--f-body);font-size:13px;color:var(--fg);background:var(--surface);
+  select,input{font-family:var(--f-body);font-size:13.5px;color:var(--fg);background:var(--surface);
     border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px}
   select{cursor:pointer}
   select:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .lang-btn{min-width:46px;justify-content:center}
 
   .sec-head{display:flex;align-items:baseline;gap:12px;margin:30px 2px 14px}
-  .sec-head h2{font-family:var(--f-head);font-size:13px;font-weight:600;color:var(--fg);margin:0}
+  .sec-head h2{font-family:var(--f-head);font-size:14px;font-weight:700;color:var(--fg);margin:0}
   .sec-head .line{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
   .sec-head .tag{font-family:var(--f-mono);font-size:10.5px;color:var(--faint)}
 
   .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r)}
   .card-pad{padding:20px}
-  .card-title{font-family:var(--f-head);font-size:13px;font-weight:600;color:var(--fg);margin:0 0 3px}
+  .card-title{font-family:var(--f-head);font-size:14px;font-weight:700;color:var(--fg);margin:0 0 3px}
   .card-sub{font-family:var(--f-mono);font-size:11px;color:var(--faint);margin:0 0 18px}
 
   /* خط الأنابيب */
   .pipe{position:relative;overflow:hidden;padding:22px 22px 24px}
   #pipeCanvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;opacity:.6}
-  .pipe-top{position:relative;z-index:1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:26px}
-  .pipe-top .t{font-family:var(--f-head);font-size:14px;font-weight:600}
+  .pipe-top{position:relative;z-index:1;display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:26px}
+  .pipe-top .t{font-family:var(--f-head);font-size:15px;font-weight:700}
   .pipe-top .insight{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);margin-inline-end:auto}
   .pipe-top .insight b{color:var(--high)}
-  .btn{font-family:var(--f-head);font-size:12.5px;font-weight:600;cursor:pointer;border-radius:var(--r-sm);
+  .btn{font-family:var(--f-head);font-size:13px;font-weight:600;cursor:pointer;border-radius:var(--r-sm);
     padding:10px 16px;border:1px solid transparent;transition:.16s;display:inline-flex;align-items:center;gap:8px}
   .btn-primary{background:linear-gradient(120deg,var(--accent),var(--blue));color:#041a17;
     box-shadow:0 4px 16px #14e0c040}
@@ -90,6 +92,11 @@
   .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;filter:none}
   .btn-ghost{background:var(--surface-2);border-color:var(--line);color:var(--fg)}
   .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .pipe-opt{display:inline-flex;align-items:center;gap:7px;font-family:var(--f-mono);font-size:11.5px;
+    color:var(--muted);cursor:pointer;user-select:none;padding:8px 11px;border:1px solid var(--line);
+    border-radius:var(--r-sm);background:var(--surface-2)}
+  .pipe-opt input{accent-color:var(--violet);width:15px;height:15px;padding:0}
+  .pipe-opt.on{color:var(--violet);border-color:#3a2050}
   .stages{position:relative;z-index:1;display:flex;align-items:flex-start;gap:0}
   .stage{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center}
   .node{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--bg-2);
@@ -98,7 +105,7 @@
   .node svg{width:24px;height:24px}
   .node::before{content:"";position:absolute;inset:-5px;border-radius:50%;border:1.6px solid transparent;transition:.3s}
   @keyframes breathe{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 15px -1px var(--sc)}}
-  .stage .nm{font-family:var(--f-head);font-size:11px;font-weight:600;color:var(--muted);transition:.3s}
+  .stage .nm{font-family:var(--f-head);font-size:11.5px;font-weight:600;color:var(--muted);transition:.3s}
   .stage .st{font-family:var(--f-mono);font-size:9px;color:var(--faint);min-height:11px}
   .conn{flex:1;align-self:flex-start;margin-top:27px;height:2px;min-width:14px;border-radius:2px;
     position:relative;overflow:hidden;background:var(--line-soft)}
@@ -129,7 +136,7 @@
   .scope-opt{display:flex;align-items:center;gap:7px;font-family:var(--f-mono);font-size:11px;
     color:var(--muted);margin:4px 0 14px;cursor:pointer;user-select:none}
   .scope-opt input{accent-color:var(--deny);width:14px;height:14px;padding:0}
-  .scope-list{display:flex;flex-direction:column;gap:8px;max-height:210px;overflow-y:auto}
+  .scope-list{display:flex;flex-direction:column;gap:8px;max-height:230px;overflow-y:auto}
   .chip{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--r-sm);
     background:var(--surface-2);border:1px solid var(--line);font-family:var(--f-mono);font-size:12px}
   .chip .id{color:var(--fg);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -138,6 +145,9 @@
   .chip.inn .state{background:var(--ok);box-shadow:0 0 7px var(--ok)}
   .chip.out .state{background:var(--deny);box-shadow:0 0 7px var(--deny)}
   .chip.out .id{color:var(--muted);text-decoration:line-through;text-decoration-color:var(--deny)}
+  .chip-del{background:none;border:none;color:var(--faint);cursor:pointer;font-size:17px;line-height:1;
+    padding:0 2px;flex:none;transition:.15s}
+  .chip-del:hover{color:var(--deny);transform:scale(1.15)}
   .empty{font-family:var(--f-mono);font-size:11.5px;color:var(--faint);padding:14px 2px}
 
   /* رادار */
@@ -168,7 +178,7 @@
     font-weight:500;padding:12px 15px;background:var(--bg-2);border-bottom:1px solid var(--line)}
   tbody td{padding:13px 15px;border-bottom:1px solid var(--line-soft)}
   tbody tr:last-child td{border-bottom:none}
-  tbody tr:hover{background:var(--surface-2)}
+  tbody tr.find-row:hover{background:var(--surface-2)}
   tbody tr.fresh{animation:fresh 1.6s ease}
   @keyframes fresh{0%{background:#14e0c026}100%{background:transparent}}
   .host{font-family:var(--f-mono);font-size:12.5px;display:flex;align-items:center;gap:9px}
@@ -183,8 +193,38 @@
   .p-needs_review{background:#2b2410;color:var(--med);border:1px solid #574818}
   .p-confirmed{background:#0c2318;color:var(--ok);border:1px solid #1c5438}
   .p-reported{background:#0c1e33;color:var(--low);border:1px solid #1d456b}
-  .p-not_applicable,.p-duplicate{background:#171f2c;color:var(--faint);border:1px solid var(--line)}
+  .p-not_applicable,.p-duplicate,.p-resolved{background:#171f2c;color:var(--faint);border:1px solid var(--line)}
   .chk{color:var(--accent)}
+
+  tbody tr.find-row{cursor:pointer}
+  .caret{display:inline-block;width:0;height:0;margin-inline-end:8px;vertical-align:middle;
+    border-inline-start:5px solid var(--faint);border-top:4px solid transparent;
+    border-bottom:4px solid transparent;transition:transform .2s}
+  [dir=rtl] .caret{border-inline-start:0;border-inline-end:5px solid var(--faint)}
+  tr.find-row.open .caret{transform:rotate(90deg)}
+  [dir=rtl] tr.find-row.open .caret{transform:rotate(-90deg)}
+  tr.detail-row>td{padding:0;background:var(--bg-2);border-bottom:1px solid var(--line-soft)}
+  .detail{padding:16px 18px;display:flex;flex-direction:column;gap:12px}
+  .detail .dk{font-family:var(--f-mono);font-size:10px;color:var(--faint);
+    text-transform:uppercase;letter-spacing:.06em;margin-bottom:3px}
+  .detail .dv{font-family:var(--f-mono);font-size:12px;color:var(--fg);
+    word-break:break-word;white-space:pre-wrap;line-height:1.6}
+  .detail .vname{font-family:var(--f-head);font-size:16px;font-weight:700;color:var(--accent)}
+  .conf-badge{font-family:var(--f-head);font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;
+    border:1px solid;font-variant-numeric:tabular-nums}
+  .poc{font-family:var(--f-mono);font-size:11.5px;color:var(--fg);background:#0a0f1a;border:1px solid var(--line);
+    border-radius:var(--r-sm);padding:11px 13px;margin:6px 0 0;white-space:pre-wrap;word-break:break-word;
+    overflow-x:auto;line-height:1.7;direction:ltr;text-align:left}
+  .poc-copy{padding:3px 10px;font-size:10.5px;margin-inline-start:8px;vertical-align:middle}
+  .detail-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:4px}
+  .btn-sm{font-size:12px;padding:8px 14px}
+  .btn-confirm{background:#0c2318;border:1px solid #1c5438;color:var(--ok)}
+  .btn-confirm:hover{border-color:var(--ok);transform:translateY(-1px)}
+  .btn-report{background:#1a0f22;border:1px solid #3a2050;color:var(--violet)}
+  .btn-report:hover{border-color:var(--violet);transform:translateY(-1px)}
+  .btn-report:disabled{opacity:.45;cursor:not-allowed;transform:none}
+  .btn-del{background:#2a0e18;border:1px solid #5a1d2e;color:var(--deny);margin-inline-start:auto}
+  .btn-del:hover{border-color:var(--deny);transform:translateY(-1px)}
 
   .gate-list{display:flex;flex-direction:column}
   .ga{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line-soft);
@@ -197,8 +237,31 @@
   .ga .rsn{color:var(--faint);margin-inline-start:auto;font-size:10.5px;white-space:nowrap}
 
   footer{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);
-    font-family:var(--f-mono);font-size:11px;color:var(--faint);line-height:1.8}
+    font-family:var(--f-mono);font-size:11px;color:var(--faint);line-height:1.9}
   footer b{color:var(--muted)}
+
+  /* نافذة إنشاء برنامج */
+  .overlay{position:fixed;inset:0;z-index:50;display:none;place-items:center;
+    background:#060912cc;backdrop-filter:blur(4px);padding:max(18px,env(safe-area-inset-top,0px)) 18px}
+  .overlay.show{display:grid}
+  .modal{width:min(420px,94vw);background:var(--surface);border:1px solid var(--line);
+    border-radius:var(--r);padding:22px;box-shadow:0 20px 60px #000a}
+  .modal h3{font-family:var(--f-head);font-size:17px;font-weight:700;margin:0 0 4px;color:var(--fg)}
+  .modal .hint{font-family:var(--f-mono);font-size:10.5px;color:var(--faint);margin:0 0 16px;line-height:1.7}
+  .modal label{display:block;font-family:var(--f-mono);font-size:11px;color:var(--muted);margin:12px 0 5px}
+  .modal input{width:100%}
+  .modal textarea{width:100%;min-height:76px;font-family:var(--f-mono);font-size:12px;color:var(--fg);
+    background:var(--surface);border:1px solid var(--line);border-radius:var(--r-sm);padding:9px 11px;resize:vertical}
+  .modal .row2{display:flex;gap:9px}.modal .row2>div{flex:1}
+  .modal.wide{width:min(560px,94vw)}
+  .sx-prev{margin-top:14px}
+  .sx-prevlist{max-height:140px;overflow-y:auto;margin-top:6px;display:flex;flex-direction:column;gap:5px}
+  .sx-prevlist .pv{font-family:var(--f-mono);font-size:11px;color:var(--muted);
+    padding:6px 9px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface-2)}
+  .sx-prevlist .pv b{color:var(--accent)}
+  .sx-status{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);min-height:16px;margin-top:10px}
+  .sx-status.run{color:var(--violet)}.sx-status.err{color:var(--deny)}.sx-status.ok{color:var(--ok)}
+  .modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:20px}
 
   #toast{position:fixed;left:50%;transform:translateX(-50%) translateY(16px);
     bottom:calc(22px + env(safe-area-inset-bottom,0px));z-index:40;background:#0c2318;
@@ -211,8 +274,10 @@
   @media(max-width:520px){.stages{overflow-x:auto;padding-bottom:6px}.stage{min-width:72px}
     .node{width:46px;height:46px}.node svg{width:20px;height:20px}}
   @media(prefers-reduced-motion:reduce){*{animation:none!important}}
+  .wrap{max-width:none;width:100%}
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <header>
     <div class="brand">
@@ -222,44 +287,50 @@
       </svg>
       <div><h1>IQ<b>Scan</b></h1><div class="sub">SCOPE-SAFE&nbsp;SCANNER</div></div>
     </div>
-    <select id="progSel" aria-label="اختيار البرنامج"></select>
+    <button class="btn btn-ghost lang-btn" id="langBtn" type="button">EN</button>
     <span class="status-pill"><span class="dot" id="statusDot"></span><span id="statusText">—</span></span>
   </header>
 
   <section class="panel pipe">
     <canvas id="pipeCanvas" aria-hidden="true"></canvas>
     <div class="pipe-top">
-      <span class="t">خط سير الفحص</span>
+      <span class="t" data-i18n="pipeTitle">خط سير الفحص</span>
       <span class="insight" id="insight"></span>
-      <button class="btn btn-primary" id="runBtn">تشغيل السلسلة</button>
+      <input class="seed-input" id="seedInput" data-i18n-ph="seedPh" placeholder="الهدف: example.com" autocomplete="off" aria-label="target" style="min-width:150px;max-width:220px">
+      <button class="btn btn-primary" id="runBtn" data-i18n="runBtn">Run Scan</button>
+      <button class="btn btn-ghost" id="authCfgBtn" type="button" data-i18n="authCfgBtn">⚙ إعداد الدخول</button>
+      <button class="btn btn-ghost" id="strixBtn" type="button">Strix</button>
     </div>
     <div class="stages" id="stages"></div>
   </section>
 
-  <div class="sec-head"><h2>نظرة عامة</h2><span class="line"></span><span class="tag" id="progTag"></span></div>
+  <div class="sec-head"><h2 data-i18n="ovHead">نظرة عامة</h2><span class="line"></span><span class="tag" id="progTag"></span></div>
   <section class="tiles" id="tiles"></section>
 
   <div class="grid2" style="margin-top:16px">
     <section class="panel card-pad">
-      <p class="card-title">النطاق المصرّح به</p>
-      <p class="card-sub">أضف الأهداف المسموح فحصها فقط</p>
+      <p class="card-title" data-i18n="scopeTitle">النطاق المصرّح به</p>
+      <p class="card-sub" data-i18n="scopeSub">أضف الأهداف المسموح فحصها فقط</p>
       <form class="scope-form" id="scopeForm">
-        <select id="scopeKind" aria-label="نوع النطاق">
-          <option value="domain">نطاق</option><option value="wildcard">wildcard</option>
-          <option value="ip">IP</option><option value="cidr">CIDR</option>
+        <select id="scopeKind" aria-label="kind">
+          <option value="domain" data-i18n="optDomain">نطاق</option>
+          <option value="wildcard" data-i18n="optWildcard">wildcard</option>
+          <option value="ip" data-i18n="optIp">IP</option>
+          <option value="cidr" data-i18n="optCidr">CIDR</option>
+          <option value="url" data-i18n="optUrl">url (هدف مُصادَق)</option>
         </select>
-        <input id="scopeInput" placeholder="example.com أو ‎*.example.com" autocomplete="off">
-        <button class="btn btn-ghost" type="submit">إضافة</button>
+        <input id="scopeInput" data-i18n-ph="scopePh" placeholder="example.com أو ‎*.example.com" autocomplete="off">
+        <button class="btn btn-ghost" type="submit" data-i18n="scopeAdd">إضافة</button>
       </form>
-      <label class="scope-opt"><input type="checkbox" id="scopeOut"> مُستبعَد (خارج النطاق)</label>
+      <label class="scope-opt"><input type="checkbox" id="scopeOut"> <span data-i18n="scopeOut">مُستبعَد (خارج النطاق)</span></label>
       <div class="scope-list" id="scopeList"></div>
     </section>
 
     <section class="panel card-pad">
-      <p class="card-title">رادار الاستكشاف</p>
-      <p class="card-sub">المضيفات المكتشَفة · recon حيّ</p>
+      <p class="card-title" data-i18n="radarTitle">رادار الاستكشاف</p>
+      <p class="card-sub" data-i18n="radarSub">المضيفات المكتشَفة · recon حيّ</p>
       <div class="radar-box">
-        <canvas id="radar" width="300" height="300" aria-label="رادار الاستكشاف"></canvas>
+        <canvas id="radar" width="300" height="300" aria-label="recon radar"></canvas>
         <div class="radar-legend" id="radarLegend"></div>
       </div>
     </section>
@@ -267,36 +338,83 @@
 
   <div class="grid2" style="margin-top:16px">
     <section class="panel card-pad">
-      <p class="card-title">توزيع الخطورة</p>
-      <p class="card-sub">النتائج الموحّدة حسب CVSS</p>
+      <p class="card-title" data-i18n="donutTitle">توزيع الخطورة</p>
+      <p class="card-sub" data-i18n="donutSub">النتائج الموحّدة حسب CVSS</p>
       <div class="donut-box">
         <div class="donut">
           <svg viewBox="0 0 42 42" id="donutSvg" aria-hidden="true"></svg>
-          <div class="center"><div class="big" id="donutTotal">0</div><div class="lab">FINDINGS</div></div>
+          <div class="center"><div class="big" id="donutTotal">0</div><div class="lab" data-i18n="findingsLbl">FINDINGS</div></div>
         </div>
         <div class="sev-legend" id="sevLegend"></div>
       </div>
     </section>
     <section class="panel card-pad">
-      <p class="card-title">حارس النطاق</p>
-      <p class="card-sub">قرارات القبول/الرفض · audit log</p>
+      <p class="card-title" data-i18n="gateTitle">حارس النطاق</p>
+      <p class="card-sub" data-i18n="gateSub">قرارات القبول/الرفض · audit log</p>
       <div class="gate-list" id="gateList"></div>
     </section>
   </div>
 
-  <div class="sec-head"><h2>النتائج</h2><span class="line"></span><span class="tag">needs_review → confirmed → reported</span></div>
+  <div class="sec-head"><h2 data-i18n="findHead">النتائج</h2><span class="line"></span>
+    <button class="btn btn-ghost btn-sm" id="confirmAllBtn" type="button" data-i18n="confirmAll">تأكيد تلقائي</button>
+    <button class="btn btn-ghost btn-sm" id="clearAllBtn" type="button" data-i18n="clearAll">حذف الكل</button></div>
   <div class="tbl-scroll">
     <table>
-      <thead><tr><th>المضيف</th><th>النوع</th><th>الخطورة</th><th>CVSS</th><th>المصادر</th><th>الحالة</th></tr></thead>
+      <thead><tr>
+        <th data-i18n="thHost">المضيف</th><th data-i18n="thType">النوع</th>
+        <th data-i18n="thSev">الخطورة</th><th>CVSS</th>
+        <th data-i18n="thConf">الثقة</th><th data-i18n="thSrc">المصادر</th><th data-i18n="thStatus">الحالة</th>
+      </tr></thead>
       <tbody id="findBody"></tbody>
     </table>
   </div>
 
-  <footer>
-    كل هدف يمرّ عبر <b>حارس النطاق</b> قبل أي فحص — خارج النطاق يُرفض ويُسجَّل.
-    النتائج تبقى <b>مسودّات تتطلب مراجعة بشرية</b> — لا إرسال آلي.<br>
-    استخدم المنصّة على أهداف مصرّح بها فقط.
-  </footer>
+  <footer><span id="footerText"></span></footer>
+</div>
+
+<div class="overlay" id="strixOverlay">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-label="strix agent">
+    <h3 data-i18n="strixTitle">وكيل Strix (ذكاء اصطناعي)</h3>
+    <p class="hint" data-i18n="strixHint">يفحص بالاستغلال الفعلي. «فحص جديد» يبدأ من الصفر؛ «أكمل من السابق» يتحقّق من نتائج الفحص الآليّ ويكمل من حيث توقّفنا. يحتاج LLM_API_KEY.</p>
+    <label for="sxTarget" data-i18n="strixTarget">الهدف</label>
+    <input id="sxTarget" placeholder="http://dvwa/" autocomplete="off">
+    <label for="sxPrompt" data-i18n="strixPrompt">التعليمات (prompt)</label>
+    <textarea id="sxPrompt" spellcheck="false" placeholder="مثال: ركّز على SQLi وCommand Injection، سجّل دخول admin/password"></textarea>
+    <div class="sx-prev">
+      <div class="dk" data-i18n="strixPrev">نتائج سابقة سيتحقّق منها</div>
+      <div id="sxPrevList" class="sx-prevlist"></div>
+    </div>
+    <div class="sx-status" id="sxStatus"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" type="button" id="sxCancel" data-i18n="npCancel">إلغاء</button>
+      <button class="btn btn-ghost" type="button" id="sxContinue" data-i18n="strixContinue">أكمل من السابق</button>
+      <button class="btn btn-primary" type="button" id="sxFresh" data-i18n="strixFresh">فحص جديد</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="authOverlay">
+  <div class="modal wide" role="dialog" aria-modal="true" aria-label="authenticated scan">
+    <h3 data-i18n="authTitle">إعداد تسجيل الدخول (يُحفظ مشفّرًا)</h3>
+    <p class="hint" data-i18n="authHint">يُحفظ مرة واحدة ويُستخدم تلقائيًا في كل «فحص مُصادَق». كلمة المرور تُخزَّن مشفّرة (Fernet).</p>
+    <form id="authForm">
+      <label for="aLoginUrl" data-i18n="aLoginUrl">رابط تسجيل الدخول</label>
+      <input id="aLoginUrl" placeholder="http://dvwa/login.php" autocomplete="off">
+      <div class="row2">
+        <div><label for="aUser" data-i18n="aUser">المستخدم</label><input id="aUser" placeholder="admin" autocomplete="off"></div>
+        <div><label for="aPass" data-i18n="aPass">كلمة المرور</label><input id="aPass" type="password" placeholder="••••••" autocomplete="off"></div>
+      </div>
+      <div class="row2">
+        <div><label for="aToken" data-i18n="aToken">حقل التوكن (CSRF)</label><input id="aToken" placeholder="user_token" autocomplete="off"></div>
+        <div><label for="aFields" data-i18n="aFields">حقول إضافية</label><input id="aFields" placeholder="Login=Login" autocomplete="off"></div>
+      </div>
+      <label for="aCookies" data-i18n="aCookies">كوكيز إضافية</label>
+      <input id="aCookies" placeholder="security=low" autocomplete="off">
+      <div class="modal-actions">
+        <button class="btn btn-ghost" type="button" id="authCancel" data-i18n="npCancel">إلغاء</button>
+        <button class="btn btn-primary" type="submit" data-i18n="authSave">حفظ الإعداد</button>
+      </div>
+    </form>
+  </div>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 
@@ -305,32 +423,154 @@
   "use strict";
   var RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
   var $=function(s){return document.querySelector(s)};
-  // تهريب HTML — بيانات الفحص (مضيفات/عناوين/أنواع) غير موثوقة، تمنع XSS.
   function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){
     return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
 
+  /* ── الترجمة (AR / EN) ─────────────────────────────────────────── */
+  var I18N={
+    ar:{
+      newProg:"+ برنامج",pipeTitle:"خط سير الفحص",runBtn:"Run Scan",starting:"يبدأ…",scanning:"قيد الفحص…",
+      strixLabel:"فحص بـ Strix",seedPh:"الهدف: example.com",
+      ovHead:"نظرة عامة",scopeTitle:"النطاق المصرّح به",scopeSub:"أضف الأهداف المسموح فحصها فقط",
+      optDomain:"نطاق",optWildcard:"wildcard",optIp:"IP",optCidr:"CIDR",scopePh:"example.com أو ‎*.example.com",
+      scopeAdd:"إضافة",scopeOut:"مُستبعَد (خارج النطاق)",
+      radarTitle:"رادار الاستكشاف",radarSub:"المضيفات المكتشَفة · recon حيّ",
+      donutTitle:"توزيع الخطورة",donutSub:"النتائج الموحّدة حسب CVSS",
+      gateTitle:"حارس النطاق",gateSub:"قرارات القبول/الرفض · audit log",
+      findHead:"النتائج",thHost:"المضيف",thType:"النوع",thSev:"الخطورة",thConf:"الثقة",thSrc:"المصادر",thStatus:"الحالة",
+      dConfidence:"الثقة:",dPoc:"أمر PoC (اختبره بنفسك)",copyPoc:"نسخ",copied:"نُسخ ✓",
+      modalTitle:"برنامج جديد",modalHint:"أضِف برنامجًا مصرّحًا به فقط، ثم عرّف نطاقه وشغّل الفحص.",
+      npNameLabel:"الاسم",npHandleLabel:"المُعرّف (handle)",npCancel:"إلغاء",npCreate:"إنشاء",
+      connected:"متصل",demo:"تجريبي",
+      tHosts:"مضيفات",tLive:"{n} حيّة",tInScope:"ضمن النطاق",tScannable:"مسموح فحصها",
+      tFindings:"نتائج",tCorrelated:"موحّدة",tStrixConf:"مؤكّدة Strix",tRealExploit:"استغلال فعلي",
+      rLive:"مضيفات حيّة",rSubs:"نطاقات فرعية",rInScope:"ضمن النطاق",rTotal:"الإجمالي",
+      iNone:"لا ثغرات حرجة مؤكّدة حاليًا",iCrit:"<b>{n}</b> ثغرة حرجة مؤكّدة — جاهزة للمراجعة",
+      iHigh:"<b>{n}</b> ثغرة عالية مؤكّدة بانتظار التقرير",iScanning:"الفحص جارٍ على <b>{x}</b> · {s}s",
+      stDiscovering:"يكتشف…",stScanning:"يفحص…",stExploiting:"استغلال…",stMerging:"يدمج…",stCvss:"CVSS…",stDrafting:"مسودة…",stDone:"تم",
+      fEmpty:"لا نتائج بعد — أضف الهدف وشغّل الفحص.",
+      dVuln:"الثغرة المكتشفة / المشكوك بها",dHost:"المضيف / نقطة النهاية",dEvidence:"الدليل",dSrcCvss:"المصادر · CVSS",
+      dStrixConf:"مؤكّدة باستغلال Strix",aConfirm:"تأكيد الثغرة",aReport:"مسودة تقرير",aDelete:"حذف النتيجة",
+      reportDisabled:"أكّد الثغرة أولًا",scDelTitle:"حذف النطاق",
+      scEmpty:"لا نطاقات بعد — أضف أول هدف مصرّح به.",
+      footer:"كل هدف يمرّ عبر <b>حارس النطاق</b> قبل أي فحص — خارج النطاق يُرفض ويُسجَّل. النتائج تبقى <b>مسودّات تتطلب مراجعة بشرية</b> — لا إرسال آلي.<br>استخدم المنصّة على أهداف مصرّح بها فقط.",
+      tNeedTarget:"أدخل هدف الفحص أولًا (دومين ضمن النطاق)",tNeedProgram:"أنشئ برنامجًا أولًا",
+      tStarted:"انطلقت السلسلة على الهدف: {x}",tFailStart:"تعذّر البدء: {x}",
+      tComplete:"اكتمل الفحص — {n} نتيجة",tSkipped:"تخطّي: فحص آخر قيد التشغيل لنفس البرنامج",
+      tScanFail:"فشل الفحص — راجع سجلّات الـ worker",tTimeout:"انتهت المهلة قبل اكتمال الفحص — راجع السجلّات",
+      tScopeAdd:"أُضيف النطاق: {x}",tScopeAddOut:"أُضيف كمستبعَد: {x}",tScopeFail:"تعذّر إضافة النطاق: {x}",
+      tScopeDel:"حُذف النطاق: {x}",tScopeDelFail:"تعذّر حذف النطاق: {x}",
+      tProgCreated:"أُنشئ البرنامج: {x}",tProgFail:"تعذّر الإنشاء: {x}",tProgLoadFail:"تعذّر تحميل البرنامج",
+      tConfirmed:"أُكّدت الثغرة — جاهزة للتقرير",tConfirmFail:"تعذّر التأكيد: {x}",
+      tReportSaved:"حُفظت مسودة التقرير: {x}",tReportFail:"تعذّر التقرير: {x}",
+      tFindDel:"حُذفت النتيجة",tFindDelFail:"تعذّر الحذف: {x}",tNameInvalid:"أدخل اسمًا صالحًا",
+      confirmDelFind:"حذف هذه النتيجة نهائيًا؟",confirmDelScope:"حذف هذا النطاق؟",
+      authBtn:"فحص مُصادَق",authCfgBtn:"⚙ إعداد الدخول",optUrl:"url (هدف مُصادَق)",
+      authTitle:"إعداد تسجيل الدخول (يُحفظ مشفّرًا)",
+      authHint:"يُحفظ مرة واحدة ويُستخدم تلقائيًا في كل «فحص مُصادَق». كلمة المرور تُخزَّن مشفّرة (Fernet).",
+      aLoginUrl:"رابط تسجيل الدخول",aUser:"المستخدم",aPass:"كلمة المرور",aToken:"حقل التوكن (CSRF)",
+      aFields:"حقول إضافية",aCookies:"كوكيز إضافية",authSave:"حفظ الإعداد",
+      tAuthSaved:"حُفظ إعداد الدخول",tAuthSaveFail:"تعذّر الحفظ: {x}",
+      tAuthNeedUrl:"أضف روابط أهداف (نوع url) للنطاق أولًا",
+      tAuthStarted:"انطلق الفحص المُصادَق على {n} هدف",tAuthFail:"تعذّر البدء: {x}",
+      autoBtn:"فحص ذاتي",tAutoStarted:"انطلق الفحص الذاتي — يسجّل دخول ويزحف ويفحص: {x}",
+      zapBtn:"فحص عميق (ZAP)",tZapStarted:"انطلق الفحص العميق — يسجّل دخول ويزحف ويفحص نشطًا: {x}",
+      clearAll:"حذف الكل",findingsLbl:"النتائج",confirmClearAll:"حذف كل النتائج نهائيًا؟",tCleared:"حُذفت كل النتائج",
+      confirmAll:"تأكيد تلقائي",tConfirmRun:"جارٍ التأكيد النشط…",tConfirmDone:"اكتمل التأكيد — {c} مؤكّدة، {u} غير مؤكّدة، {m} يدوية",
+      strixTitle:"وكيل Strix (ذكاء اصطناعي)",
+      strixHint:"يفحص بالاستغلال الفعلي. «فحص جديد» يبدأ من الصفر؛ «أكمل من السابق» يتحقّق من نتائج الفحص الآليّ ويكمل من حيث توقّفنا. يحتاج LLM_API_KEY.",
+      strixTarget:"الهدف",strixPrompt:"التعليمات (prompt)",strixPrev:"نتائج سابقة سيتحقّق منها",
+      strixContinue:"أكمل من السابق",strixFresh:"فحص جديد",strixNoPrev:"لا نتائج سابقة — سيبدأ فحصًا كاملًا.",
+      strixRunning:"Strix يشتغل…",strixDemo:"وضع تجريبي — Strix يحتاج خادمًا و LLM key."
+    },
+    en:{
+      newProg:"+ Program",pipeTitle:"Scan pipeline",runBtn:"Run Scan",starting:"Starting…",scanning:"Scanning…",
+      strixLabel:"Scan with Strix",seedPh:"Target: example.com",
+      ovHead:"Overview",scopeTitle:"Authorized scope",scopeSub:"Add only targets you may scan",
+      optDomain:"domain",optWildcard:"wildcard",optIp:"IP",optCidr:"CIDR",scopePh:"example.com or ‎*.example.com",
+      scopeAdd:"Add",scopeOut:"Excluded (out of scope)",
+      radarTitle:"Recon radar",radarSub:"Discovered hosts · live recon",
+      donutTitle:"Severity distribution",donutSub:"Correlated findings by CVSS",
+      gateTitle:"Scope gatekeeper",gateSub:"Allow / deny decisions · audit log",
+      findHead:"Findings",thHost:"Host",thType:"Type",thSev:"Severity",thConf:"Confidence",thSrc:"Sources",thStatus:"Status",
+      dConfidence:"Confidence:",dPoc:"PoC command (verify it yourself)",copyPoc:"Copy",copied:"Copied ✓",
+      modalTitle:"New program",modalHint:"Add only an authorized program, then define its scope and run a scan.",
+      npNameLabel:"Name",npHandleLabel:"Handle",npCancel:"Cancel",npCreate:"Create",
+      connected:"Connected",demo:"Demo",
+      tHosts:"Hosts",tLive:"{n} live",tInScope:"In scope",tScannable:"Scannable",
+      tFindings:"Findings",tCorrelated:"Correlated",tStrixConf:"Strix-confirmed",tRealExploit:"Real exploit",
+      rLive:"Live hosts",rSubs:"Subdomains",rInScope:"In scope",rTotal:"Total",
+      iNone:"No confirmed critical findings",iCrit:"<b>{n}</b> confirmed critical — ready for review",
+      iHigh:"<b>{n}</b> confirmed high awaiting report",iScanning:"Scanning <b>{x}</b> · {s}s",
+      stDiscovering:"Discovering…",stScanning:"Scanning…",stExploiting:"Exploiting…",stMerging:"Merging…",stCvss:"CVSS…",stDrafting:"Drafting…",stDone:"Done",
+      fEmpty:"No findings yet — add a target and run a scan.",
+      dVuln:"Discovered / suspected vulnerability",dHost:"Host / endpoint",dEvidence:"Evidence",dSrcCvss:"Sources · CVSS",
+      dStrixConf:"confirmed via Strix exploit",aConfirm:"Confirm",aReport:"Draft report",aDelete:"Delete",
+      reportDisabled:"Confirm the finding first",scDelTitle:"Delete scope",
+      scEmpty:"No scope yet — add your first authorized target.",
+      footer:"Every target passes the <b>scope gatekeeper</b> before any scan — out-of-scope is denied and logged. Findings stay <b>drafts requiring human review</b> — no auto-submit.<br>Use the platform only on authorized targets.",
+      tNeedTarget:"Enter a target first (in-scope domain)",tNeedProgram:"Create a program first",
+      tStarted:"Pipeline started on: {x}",tFailStart:"Failed to start: {x}",
+      tComplete:"Scan complete — {n} findings",tSkipped:"Skipped: another scan is running for this program",
+      tScanFail:"Scan failed — check worker logs",tTimeout:"Timed out before completion — check logs",
+      tScopeAdd:"Scope added: {x}",tScopeAddOut:"Added as excluded: {x}",tScopeFail:"Could not add scope: {x}",
+      tScopeDel:"Scope removed: {x}",tScopeDelFail:"Could not remove scope: {x}",
+      tProgCreated:"Program created: {x}",tProgFail:"Could not create: {x}",tProgLoadFail:"Could not load program",
+      tConfirmed:"Finding confirmed — ready for report",tConfirmFail:"Could not confirm: {x}",
+      tReportSaved:"Report draft saved: {x}",tReportFail:"Could not draft report: {x}",
+      tFindDel:"Finding deleted",tFindDelFail:"Could not delete: {x}",tNameInvalid:"Enter a valid name",
+      confirmDelFind:"Delete this finding permanently?",confirmDelScope:"Delete this scope entry?",
+      authBtn:"Auth scan",authCfgBtn:"⚙ Login settings",optUrl:"url (auth target)",
+      authTitle:"Login settings (saved, encrypted)",
+      authHint:"Saved once and used automatically on every authenticated scan. Password stored encrypted (Fernet).",
+      aLoginUrl:"Login URL",aUser:"Username",aPass:"Password",aToken:"Token field (CSRF)",
+      aFields:"Extra form fields",aCookies:"Extra cookies",authSave:"Save settings",
+      tAuthSaved:"Login settings saved",tAuthSaveFail:"Save failed: {x}",
+      tAuthNeedUrl:"Add target URLs (kind url) to scope first",
+      tAuthStarted:"Authenticated scan started on {n} target(s)",tAuthFail:"Failed to start: {x}",
+      autoBtn:"Auto scan",tAutoStarted:"Auto scan started — logs in, crawls, scans: {x}",
+      zapBtn:"Deep scan (ZAP)",tZapStarted:"Deep scan started — logs in, crawls, actively scans: {x}",
+      clearAll:"Clear all",findingsLbl:"FINDINGS",confirmClearAll:"Delete all findings permanently?",tCleared:"All findings cleared",
+      confirmAll:"Auto-verify",tConfirmRun:"Active verification running…",tConfirmDone:"Verification done — {c} confirmed, {u} unconfirmed, {m} manual",
+      strixTitle:"Strix Agent (AI)",
+      strixHint:"Scans by real exploitation. 'Fresh scan' starts over; 'Continue' verifies the automated findings and resumes from there. Needs LLM_API_KEY.",
+      strixTarget:"Target",strixPrompt:"Instructions (prompt)",strixPrev:"Prior findings it will verify",
+      strixContinue:"Continue from prior",strixFresh:"Fresh scan",strixNoPrev:"No prior findings — it will start a full scan.",
+      strixRunning:"Strix is running…",strixDemo:"Demo mode — Strix needs a server and an LLM key."
+    }
+  };
+  var LANG="ar";
+  try{var saved=localStorage.getItem("iqscan_lang");if(saved==="ar"||saved==="en")LANG=saved}catch(e){}
+  function t(k,vars){var s=(I18N[LANG]&&I18N[LANG][k]);if(s==null)s=I18N.ar[k];if(s==null)return k;
+    if(vars)for(var p in vars)s=s.split("{"+p+"}").join(vars[p]);return s}
+
+  function applyLang(){
+    document.documentElement.lang=LANG;
+    document.documentElement.dir=LANG==="ar"?"rtl":"ltr";
+    $("#langBtn").textContent=LANG==="ar"?"EN":"ع";
+    [].forEach.call(document.querySelectorAll("[data-i18n]"),function(el){el.textContent=t(el.getAttribute("data-i18n"))});
+    [].forEach.call(document.querySelectorAll("[data-i18n-ph]"),function(el){el.setAttribute("placeholder",t(el.getAttribute("data-i18n-ph")))});
+    $("#footerText").innerHTML=t("footer");
+    if(S.data)render();
+  }
+
+  /* ── بيانات تجريبية (DVWA) تُعرض فقط حين يتعذّر الوصول للخادم ── */
   var DEMO={
-    programs:[{id:1,name:"Acme Security",handle:"acme"},{id:2,name:"Globex BBP",handle:"globex"}],
-    hosts:{total:38,inScope:31,live:24,subs:14},
-    scope:[{kind:"wildcard",identifier:"*.acme.com",in_scope:true},
-           {kind:"domain",identifier:"acme.com",in_scope:true},
-           {kind:"domain",identifier:"admin.acme.com",in_scope:false}],
+    programs:[{id:1,name:"DVWA Local",handle:"dvwa"}],
+    hosts:{total:3,inScope:3,live:2,subs:0},
+    scope:[{id:1,kind:"domain",identifier:"dvwa",in_scope:true}],
     findings:[
-      {host:"app.acme.com",vuln_type:"SQL Injection",severity:"critical",cvss_score:9.8,sources:"nuclei,strix",confirmed_by_strix:true,status:"confirmed"},
-      {host:"api.acme.com",vuln_type:"SSRF",severity:"high",cvss_score:8.6,sources:"strix",confirmed_by_strix:true,status:"confirmed"},
-      {host:"auth.acme.com",vuln_type:"IDOR",severity:"high",cvss_score:7.1,sources:"strix",confirmed_by_strix:true,status:"needs_review"},
-      {host:"dash.acme.com",vuln_type:"Reflected XSS",severity:"medium",cvss_score:6.1,sources:"nuclei",confirmed_by_strix:false,status:"needs_review"},
-      {host:"cdn.acme.com",vuln_type:"Exposed .git",severity:"medium",cvss_score:5.3,sources:"nuclei",confirmed_by_strix:false,status:"reported"},
-      {host:"mail.acme.com",vuln_type:"Open Redirect",severity:"low",cvss_score:3.1,sources:"nuclei",confirmed_by_strix:false,status:"not_applicable"}
+      {id:1,host:"dvwa",endpoint:"/vulnerabilities/sqli/",vuln_type:"SQL Injection",severity:"critical",cvss_score:9.8,sources:"nuclei,strix",confirmed_by_strix:true,status:"confirmed",evidence:"1' OR '1'='1 → تسريب جدول users"},
+      {id:2,host:"dvwa",endpoint:"/vulnerabilities/exec/",vuln_type:"Command Injection",severity:"critical",cvss_score:9.1,sources:"strix",confirmed_by_strix:true,status:"needs_review",evidence:"; id → uid=33(www-data)"},
+      {id:3,host:"dvwa",endpoint:"/vulnerabilities/xss_r/",vuln_type:"Reflected XSS",severity:"medium",cvss_score:6.1,sources:"nuclei",confirmed_by_strix:false,status:"needs_review",evidence:"<script>alert(1)<\/script>"},
+      {id:4,host:"dvwa",endpoint:"/vulnerabilities/upload/",vuln_type:"Unrestricted File Upload",severity:"high",cvss_score:8.2,sources:"strix",confirmed_by_strix:true,status:"needs_review",evidence:"shell.php مرفوع ومنفّذ"},
+      {id:5,host:"dvwa",endpoint:"/vulnerabilities/csrf/",vuln_type:"CSRF",severity:"medium",cvss_score:5.4,sources:"nuclei",confirmed_by_strix:false,status:"reported",evidence:"تغيير كلمة المرور بلا توكن"}
     ],
     audit:[
-      {decision:"allow",target_value:"app.acme.com",reason:"ضمن النطاق"},
-      {decision:"deny",target_value:"internal.acme.corp",reason:"غير موجود في النطاق"},
-      {decision:"allow",target_value:"api.acme.com",reason:"ضمن النطاق"},
-      {decision:"deny",target_value:"admin.acme.com",reason:"مُستبعَد صراحة"}
+      {decision:"allow",target_value:"dvwa",reason:"ضمن النطاق"},
+      {decision:"deny",target_value:"example.com",reason:"غير موجود في النطاق"}
     ]
   };
-  var SEV={critical:"var(--crit)",high:"var(--high)",medium:"var(--med)",low:"var(--low)",info:"var(--info)"};
   var SEVHEX={critical:"#ff3860",high:"#ff8a1e",medium:"#ffd60a",low:"#35b8ff",info:"#94a2bc"};
   var STAGES=[
     {k:"recon",nm:"Recon",c:"#14e0c0",ic:'<path d="M12 2a10 10 0 100 20M12 2v10l7 4" stroke="currentColor" stroke-width="1.6" fill="none"/><circle cx="12" cy="12" r="2" fill="currentColor"/>'},
@@ -340,56 +580,90 @@
     {k:"triage",nm:"Triage",c:"#ff9f1c",ic:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M12 12l4-3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>'},
     {k:"report",nm:"Report",c:"#ff4d8d",ic:'<path d="M7 3h7l4 4v14H7zM14 3v4h4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linejoin="round"/><path d="M9 13h6M9 16h6" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>'}
   ];
+  var STAGE_LABEL={recon:"stDiscovering",scan:"stScanning",strix:"stExploiting",correlate:"stMerging",triage:"stCvss",report:"stDrafting"};
+  var AUTO={recon:1,scan:1,strix:1,correlate:1};  // مراحل السلسلة الآلية
   var TILEC=["#14e0c0","#3b82ff","#a855f7","#22d39a"];
 
-  var S={live:false,data:null,pid:null};
+  // Strix صار لوحة مستقلة — لا يظهر كعقدة في سلسلة الفحص الآلي.
+  function activeStages(){return STAGES.filter(function(s){return s.k!=="strix"})}
+
+  var S={live:false,data:null,pid:null,programs:[]};
   function j(u,o){return fetch(u,Object.assign({headers:{"Accept":"application/json"}},o||{}))
     .then(function(r){if(!r.ok)throw 0;return r.json()})}
+  function req(u,o){return fetch(u,o).then(function(r){
+    return r.text().then(function(txt){var d={};try{d=txt?JSON.parse(txt):{}}catch(e){}
+      if(!r.ok)throw (d&&d.detail)||("HTTP "+r.status);return d})})}
+  function post(u,body){return req(u,{method:"POST",
+    headers:{"Content-Type":"application/json","Accept":"application/json"},
+    body:body?JSON.stringify(body):undefined})}
+  function del(u){return req(u,{method:"DELETE",headers:{"Accept":"application/json"}})}
+
+  function emptyData(progs){return{programs:progs,hosts:{total:0,inScope:0,live:0,subs:0},
+    scope:[],findings:[],audit:[]}}
 
   async function boot(){
+    applyLang();
     try{
-      var progs=await j("/programs");if(!Array.isArray(progs)||!progs.length)throw 0;
-      S.pid=progs[0].id;
-      var r=await Promise.all([
-        j("/programs/"+S.pid+"/correlated").catch(function(){return[]}),
-        j("/programs/"+S.pid+"/hosts").catch(function(){return[]}),
-        j("/programs/"+S.pid+"/scope").catch(function(){return[]}),
-        j("/programs/"+S.pid+"/audit").catch(function(){return[]})]);
-      S.live=true;S.data=shape(progs,r[0],r[1],r[2],r[3]);
+      var progs=await j("/programs");if(!Array.isArray(progs))throw 0;
+      S.live=true;S.programs=progs;
+      if(!S.programs.length){
+        // إنشاء برنامج افتراضي تلقائيًا — لا إدارة برامج في الواجهة.
+        var np=await post("/programs",{name:"IQScan",handle:"iqscan"}).catch(function(){return null});
+        if(np)S.programs=[np];
+      }
+      if(S.programs.length){await loadProgram(S.programs[0].id);}
+      else{S.pid=null;S.data=emptyData([]);render();}
     }catch(e){
-      S.live=false;S.pid=1;
+      S.live=false;S.pid=1;S.programs=DEMO.programs;
       S.data={programs:DEMO.programs,hosts:DEMO.hosts,scope:DEMO.scope.slice(),
         findings:DEMO.findings.slice(),audit:DEMO.audit.slice()};
+      render();
     }
-    render();particles();
+    particles();
+  }
+  async function loadProgram(pid){
+    S.pid=pid;var si=$("#seedInput");if(si)si.value="";
+    var r=await Promise.all([
+      j("/programs/"+pid+"/correlated").catch(function(){return[]}),
+      j("/programs/"+pid+"/hosts").catch(function(){return[]}),
+      j("/programs/"+pid+"/scope").catch(function(){return[]}),
+      j("/programs/"+pid+"/audit").catch(function(){return[]})]);
+    S.data=shape(S.programs,r[0],r[1],r[2],r[3]);render();
   }
   function shape(progs,corr,hosts,scope,audit){
     return{programs:progs,
       hosts:{total:hosts.length,inScope:hosts.filter(function(h){return h.in_scope}).length,
         live:hosts.filter(function(h){return h.is_live}).length,
         subs:hosts.filter(function(h){return h.source==="subfinder"}).length},
-      scope:(scope||[]).map(function(s){return{kind:s.kind,identifier:s.identifier,in_scope:s.in_scope}}),
-      findings:(corr||[]).map(function(c){return{host:c.host,vuln_type:c.vuln_type,severity:c.severity,
-        cvss_score:c.cvss_score,sources:c.sources,confirmed_by_strix:c.confirmed_by_strix,status:c.status}}),
+      scope:(scope||[]).map(function(s){return{id:s.id,kind:s.kind,identifier:s.identifier,in_scope:s.in_scope}}),
+      findings:(corr||[]).map(function(c){return{id:c.id,host:c.host,endpoint:c.endpoint,
+        vuln_type:c.vuln_type,severity:c.severity,cvss_score:c.cvss_score,sources:c.sources,
+        confirmed_by_strix:c.confirmed_by_strix,status:c.status,evidence:c.evidence,
+        confidence:c.confidence,poc:c.poc}}),
       audit:(audit||[]).slice(0,6)};
   }
 
   function render(){
     var d=S.data;
     $("#statusDot").className="dot"+(S.live?"":" demo");
-    $("#statusText").textContent=S.live?"متصل":"تجريبي";
-    var sel=$("#progSel");sel.innerHTML="";
-    d.programs.forEach(function(p){var o=document.createElement("option");o.textContent=p.name;sel.appendChild(o)});
-    $("#progTag").textContent=d.programs[0]?("● "+d.programs[0].handle):"";
+    $("#statusText").textContent=S.live?t("connected"):t("demo");
+    var cur=S.programs.filter(function(p){return p.id===S.pid})[0];
+    $("#progTag").textContent=cur?("● "+cur.name):"";
+    prefillSeed();
     buildStages();renderTiles();renderRadar();renderDonut();renderScope();
     renderFindings(d.findings,false);renderGate(d.audit);renderInsight();
+  }
+  function prefillSeed(){
+    var inp=$("#seedInput");if(!inp||inp.value.trim())return;
+    var inn=(S.data.scope||[]).filter(function(s){return s.in_scope});
+    if(inn.length)inp.value=inn[0].identifier;
   }
 
   function buildStages(){
     var box=$("#stages");box.innerHTML="";
-    STAGES.forEach(function(s,i){
+    activeStages().forEach(function(s,i){
       if(i){var c=document.createElement("div");c.className="conn";box.appendChild(c)}
-      var el=document.createElement("div");el.className="stage";
+      var el=document.createElement("div");el.className="stage";el.dataset.k=s.k;
       el.style.setProperty("--sc",s.c);el.style.setProperty("--d",(i*0.42)+"s");
       el.innerHTML='<div class="node"><svg viewBox="0 0 24 24" aria-hidden="true">'+s.ic+'</svg></div>'+
         '<div class="nm">'+s.nm+'</div><div class="st"></div>';
@@ -402,13 +676,13 @@
 
   function renderTiles(){
     var d=S.data,f=d.findings,conf=f.filter(function(x){return x.confirmed_by_strix}).length;
-    var items=[{k:"مضيفات",v:d.hosts.total,m:d.hosts.live+" حيّة"},
-      {k:"ضمن النطاق",v:d.hosts.inScope,m:"مسموح فحصها"},
-      {k:"نتائج",v:f.length,m:"موحّدة"},{k:"مؤكّدة Strix",v:conf,m:"استغلال فعلي"}];
+    var items=[{k:t("tHosts"),v:d.hosts.total,m:t("tLive",{n:d.hosts.live})},
+      {k:t("tInScope"),v:d.hosts.inScope,m:t("tScannable")},
+      {k:t("tFindings"),v:f.length,m:t("tCorrelated")},{k:t("tStrixConf"),v:conf,m:t("tRealExploit")}];
     var box=$("#tiles");box.innerHTML="";
     items.forEach(function(it,i){var el=document.createElement("div");el.className="panel tile";
       el.style.setProperty("--tc",TILEC[i]);
-      el.innerHTML='<div class="k">'+it.k+'</div><div class="v">0</div><div class="meta">'+it.m+'</div>';
+      el.innerHTML='<div class="k">'+esc(it.k)+'</div><div class="v">0</div><div class="meta">'+esc(it.m)+'</div>';
       box.appendChild(el);num(el.querySelector(".v"),it.v)});
   }
 
@@ -433,9 +707,9 @@
     }
     frame();
     var leg=$("#radarLegend");leg.innerHTML="";
-    [["مضيفات حيّة",h.live],["نطاقات فرعية",h.subs],["ضمن النطاق",h.inScope],["الإجمالي",h.total]]
+    [[t("rLive"),h.live],[t("rSubs"),h.subs],[t("rInScope"),h.inScope],[t("rTotal"),h.total]]
       .forEach(function(p){var el=document.createElement("div");el.className="rl";
-        el.innerHTML='<span class="l">'+p[0]+'</span><span class="n">0</span>';leg.appendChild(el);
+        el.innerHTML='<span class="l">'+esc(p[0])+'</span><span class="n">0</span>';leg.appendChild(el);
         num(el.querySelector(".n"),p[1],1000)});
   }
 
@@ -462,37 +736,93 @@
 
   function renderScope(){
     var box=$("#scopeList"),list=S.data.scope||[];box.innerHTML="";
-    if(!list.length){box.innerHTML='<div class="empty">لا نطاقات بعد — أضف أول هدف مصرّح به.</div>';return}
+    if(!list.length){box.innerHTML='<div class="empty">'+esc(t("scEmpty"))+'</div>';return}
     list.forEach(function(s){var el=document.createElement("div");el.className="chip "+(s.in_scope?"inn":"out");
-      el.innerHTML='<span class="state"></span><span class="id">'+esc(s.identifier)+'</span><span class="kind">'+esc(s.kind)+'</span>';
+      el.innerHTML='<span class="state"></span><span class="id">'+esc(s.identifier)+'</span>'+
+        '<span class="kind">'+esc(s.kind)+'</span>'+
+        '<button class="chip-del" title="'+esc(t("scDelTitle"))+'" aria-label="'+esc(t("scDelTitle"))+'">×</button>';
+      el.querySelector(".chip-del").addEventListener("click",function(){deleteScope(s)});
       box.appendChild(el)});
   }
   function detectKind(v){if(/^\*\./.test(v))return"wildcard";if(/\/\d{1,2}$/.test(v))return"cidr";
     if(/^\d{1,3}(\.\d{1,3}){3}$/.test(v))return"ip";return"domain"}
-  $("#scopeInput").addEventListener("input",function(){var v=this.value.trim();if(v)$("#scopeKind").value=detectKind(v)});
-  $("#scopeForm").addEventListener("submit",function(e){e.preventDefault();
-    var id=$("#scopeInput").value.trim();if(!id)return;
-    var out=$("#scopeOut").checked,entry={kind:$("#scopeKind").value,identifier:id,in_scope:!out};
-    if(S.live){j("/programs/"+S.pid+"/scope",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(entry)}).then(function(){S.data.scope.push(entry);renderScope();toast("أُضيف النطاق: "+id)})
-      .catch(function(){toast("تعذّر إضافة النطاق",true)});}
-    else{S.data.scope.push(entry);renderScope();toast((out?"أُضيف كمستبعَد: ":"أُضيف النطاق: ")+id)}
-    $("#scopeInput").value="";$("#scopeOut").checked=false;});
 
   function renderFindings(list,fresh){var tb=$("#findBody");tb.innerHTML="";
-    if(!list.length){tb.innerHTML='<tr><td colspan="6"><div class="empty">لا نتائج بعد — شغّل السلسلة.</div></td></tr>';return}
-    list.forEach(function(f){var tr=document.createElement("tr");if(fresh)tr.className="fresh";
+    if(!list.length){tb.innerHTML='<tr><td colspan="7"><div class="empty">'+esc(t("fEmpty"))+'</div></td></tr>';return}
+    list.forEach(function(f){
+      var tr=document.createElement("tr");tr.className="find-row"+(fresh?" fresh":"");
       var conf=f.confirmed_by_strix?'<span class="chk">✓</span> ':'';
       var src=(f.sources||"").split(",").map(function(s){return s==="strix"?'<span class="strix">strix</span>':esc(s)}).join(", ");
       var sevc=SEVHEX[f.severity]||"var(--info)";
       var status=esc(String(f.status).replace(/[^a-z_]/gi,""));
-      tr.innerHTML='<td><span class="host" style="--sev:'+sevc+'">'+esc(f.host)+'</span></td>'+
+      var cfd=(f.confidence!=null?f.confidence:0),cfc=cfd>=80?"#22d39a":(cfd>=55?"#ffd60a":"#ff8a1e");
+      tr.innerHTML='<td><span class="host" style="--sev:'+sevc+'"><span class="caret"></span>'+esc(f.host)+'</span></td>'+
         '<td class="vt">'+esc(f.vuln_type)+'</td>'+
         '<td><span class="badge" style="color:'+sevc+';border-color:'+sevc+'55;background:'+sevc+'18">'+esc(f.severity)+'</span></td>'+
         '<td><span class="cvss" style="color:'+sevc+'">'+(f.cvss_score!=null?esc(f.cvss_score):"—")+'</span></td>'+
+        '<td><span class="conf-badge" style="color:'+cfc+';border-color:'+cfc+'55;background:'+cfc+'18">'+cfd+'%</span></td>'+
         '<td class="src">'+conf+src+'</td>'+
         '<td><span class="pill p-'+status+'">'+esc(String(f.status).replace(/_/g," "))+'</span></td>';
-      tb.appendChild(tr)});}
+      var det=document.createElement("tr");det.className="detail-row";det.hidden=true;
+      det.innerHTML='<td colspan="7"></td>';
+      tr.addEventListener("click",function(){toggleDetail(tr,det,f)});
+      tb.appendChild(tr);tb.appendChild(det);
+    });}
+  function toggleDetail(tr,det,f){
+    if(!det.hidden){det.hidden=true;tr.classList.remove("open");return}
+    tr.classList.add("open");
+    var confirmed=f.status==="confirmed",canConfirm=f.status==="needs_review";
+    var html='<div class="detail">'+
+      '<div><div class="dk">'+esc(t("dVuln"))+'</div><div class="vname">'+esc(f.vuln_type)+'</div></div>'+
+      '<div><div class="dk">'+esc(t("dHost"))+'</div><div class="dv">'+esc(f.host)+(f.endpoint?(" · "+esc(f.endpoint)):"")+'</div></div>'+
+      (f.evidence?('<div><div class="dk">'+esc(t("dEvidence"))+'</div><div class="dv">'+esc(f.evidence)+'</div></div>'):'')+
+      '<div><div class="dk">'+esc(t("dSrcCvss"))+'</div><div class="dv">'+esc(f.sources||"—")+
+        (f.confirmed_by_strix?(" · "+esc(t("dStrixConf"))):"")+
+        (f.cvss_score!=null?(" · CVSS "+esc(f.cvss_score)):"")+
+        " · "+esc(t("dConfidence"))+" "+(f.confidence!=null?f.confidence:0)+"%"+'</div></div>'+
+      (f.poc?('<div><div class="dk">'+esc(t("dPoc"))+' <button class="btn btn-sm poc-copy" data-act="copypoc">'+esc(t("copyPoc"))+'</button></div><pre class="poc">'+esc(f.poc)+'</pre></div>'):'')+
+      '<div class="detail-actions">'+
+        (canConfirm?'<button class="btn btn-sm btn-confirm" data-act="confirm">'+esc(t("aConfirm"))+'</button>':'')+
+        '<button class="btn btn-sm btn-report" data-act="report"'+(confirmed?'':' disabled title="'+esc(t("reportDisabled"))+'"')+'>'+esc(t("aReport"))+'</button>'+
+        '<button class="btn btn-sm btn-del" data-act="delete">'+esc(t("aDelete"))+'</button>'+
+      '</div></div>';
+    det.firstChild.innerHTML=html;det.hidden=false;
+    var cb=det.querySelector('[data-act="confirm"]');
+    if(cb)cb.addEventListener("click",function(e){e.stopPropagation();confirmFinding(f)});
+    var rb=det.querySelector('[data-act="report"]');
+    if(rb)rb.addEventListener("click",function(e){e.stopPropagation();reportFinding(f)});
+    var db2=det.querySelector('[data-act="delete"]');
+    if(db2)db2.addEventListener("click",function(e){e.stopPropagation();deleteFinding(f)});
+    var pc=det.querySelector('[data-act="copypoc"]');
+    if(pc)pc.addEventListener("click",function(e){e.stopPropagation();
+      try{navigator.clipboard.writeText(f.poc||"");toast(t("copied"))}catch(_){toast(t("copied"))}});
+  }
+  function confirmFinding(f){
+    if(!S.live){f.status="confirmed";renderFindings(S.data.findings,false);renderInsight();toast(t("tConfirmed"));return}
+    post("/correlated/"+f.id+"/triage",{status:"confirmed",actor:"dashboard"})
+      .then(function(cf){f.status=cf.status;renderFindings(S.data.findings,false);renderInsight();toast(t("tConfirmed"))})
+      .catch(function(err){toast(t("tConfirmFail",{x:err}),true)});
+  }
+  function reportFinding(f){
+    if(!S.live){toast(t("tReportSaved",{x:"reports/out/"}));return}
+    post("/correlated/"+f.id+"/report?save=true")
+      .then(function(d){toast(t("tReportSaved",{x:(d.saved_to||"reports/out/")}))})
+      .catch(function(err){toast(t("tReportFail",{x:err}),true)});
+  }
+  function deleteFinding(f){
+    if(!confirm(t("confirmDelFind")))return;
+    function done(){S.data.findings=S.data.findings.filter(function(x){return x!==f});
+      renderTiles();renderDonut();renderFindings(S.data.findings,false);renderInsight();toast(t("tFindDel"))}
+    if(!S.live){done();return}
+    del("/correlated/"+f.id).then(done).catch(function(err){toast(t("tFindDelFail",{x:err}),true)});
+  }
+  function deleteScope(s){
+    if(!confirm(t("confirmDelScope")))return;
+    function done(){S.data.scope=S.data.scope.filter(function(x){return x!==s});renderScope();toast(t("tScopeDel",{x:s.identifier}))}
+    if(!S.live){done();return}
+    del("/programs/"+S.pid+"/scope/"+s.id).then(done).catch(function(err){toast(t("tScopeDelFail",{x:err}),true)});
+  }
+
   function renderGate(audit){var box=$("#gateList");box.innerHTML="";
     (audit||[]).forEach(function(a){var allow=a.decision==="allow";var el=document.createElement("div");
       el.className="ga "+(allow?"allow":"deny");
@@ -501,38 +831,84 @@
   function renderInsight(){var f=S.data.findings,
     crit=f.filter(function(x){return x.severity==="critical"&&x.confirmed_by_strix}).length,
     hi=f.filter(function(x){return x.severity==="high"&&x.status==="confirmed"}).length,el=$("#insight");
-    if(crit)el.innerHTML="<b>"+crit+"</b> ثغرة حرجة مؤكّدة — جاهزة للمراجعة";
-    else if(hi)el.innerHTML="<b>"+hi+"</b> ثغرة عالية مؤكّدة بانتظار التقرير";
-    else el.textContent="لا ثغرات حرجة مؤكّدة حاليًا"}
+    if(crit)el.innerHTML=t("iCrit",{n:crit});
+    else if(hi)el.innerHTML=t("iHigh",{n:hi});
+    else el.textContent=t("iNone")}
 
   var running=false;
   function sleep(ms){return new Promise(function(r){setTimeout(r,RM?0:ms)})}
-  async function runPipeline(){
-    if(running)return;running=true;var btn=$("#runBtn");btn.disabled=true;btn.textContent="قيد التشغيل…";
-    if(S.live){fetch("/programs/"+S.pid+"/pipeline",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({seed:(S.data.programs[0]&&S.data.programs[0].handle||"example")+".com"})}).catch(function(){})}
+  function resetBtn(btn){btn.disabled=false;btn.textContent=t("runBtn")}
+
+  // «Run Scan» = فحص عميق مُصادَق (ZAP: زحف + active scan) — المسار الوحيد.
+  async function runScan(){
+    if(running)return;
+    var seed=($("#seedInput").value||"").trim();
+    if(!seed){toast(t("tNeedTarget"),true);$("#seedInput").focus();return}
+    if(!/:\/\//.test(seed))seed="http://"+seed;
+    running=true;var btn=$("#runBtn");btn.disabled=true;
+    buildStages();
     var stages=[].slice.call(document.querySelectorAll(".stage")),
-        conns=[].slice.call(document.querySelectorAll(".conn")),
-        labels=["يكتشف…","يفحص…","استغلال…","يدمج…","CVSS…","مسودة…"];
+        conns=[].slice.call(document.querySelectorAll(".conn"));
     stages.forEach(function(s){s.classList.remove("done","active");s.querySelector(".st").textContent=""});
+
+    if(!S.live){await demoRun();resetBtn(btn);running=false;return}
+
+    btn.textContent=t("scanning");var q;
+    try{q=await post("/programs/"+S.pid+"/zapscan",{seed:seed})}
+    catch(err){toast(t("tFailStart",{x:err}),true);resetBtn(btn);running=false;return}
+    toast(t("tZapStarted",{x:seed}));
+
+    stages.forEach(function(s,i){
+      if(AUTO[s.dataset.k]){
+        if(i)conns[i-1]&&conns[i-1].classList.add("flow");
+        s.classList.add("active");s.querySelector(".st").textContent=t(STAGE_LABEL[s.dataset.k]);
+      }});
+
+    var t0=Date.now(),res=null;
+    for(;;){
+      await sleep(4000);
+      var secs=Math.round((Date.now()-t0)/1000);
+      $("#insight").innerHTML=t("iScanning",{x:"ZAP",s:secs});
+      var st=await j("/tasks/"+q.task_id).catch(function(){return null});
+      if(st&&st.ready){res=st;break}
+      if(secs>3600)break;
+    }
+    conns.forEach(function(c){c.classList.remove("flow")});
+    stages.forEach(function(s){s.classList.remove("active")});
+
+    var r=res&&res.result;
+    if(r&&r.status==="done"){
+      await loadProgram(S.pid);
+      [].slice.call(document.querySelectorAll(".stage")).forEach(function(s){
+        if(AUTO[s.dataset.k]){s.classList.add("done");s.querySelector(".st").textContent=t("stDone")}});
+      renderFindings(S.data.findings,true);
+      toast(t("tComplete",{n:r.correlated}));
+    }else if(r&&r.status==="failed"){toast(r.reason||t("tScanFail"),true);renderInsight();}
+    else if(res&&res.error){toast(t("tScanFail"),true);renderInsight();}
+    else{toast(t("tTimeout"),true);renderInsight();}
+    resetBtn(btn);running=false;
+  }
+
+  async function demoRun(){
+    var stages=[].slice.call(document.querySelectorAll(".stage")),
+        conns=[].slice.call(document.querySelectorAll(".conn"));
     for(var i=0;i<stages.length;i++){
       if(i){conns[i-1].classList.add("flow");await sleep(600);conns[i-1].classList.remove("flow")}
-      stages[i].classList.add("active");stages[i].querySelector(".st").textContent=labels[i];
-      await sleep(1000);
-      stages[i].classList.remove("active");stages[i].classList.add("done");
-      stages[i].querySelector(".st").textContent="تم";
+      stages[i].classList.add("active");stages[i].querySelector(".st").textContent=t(STAGE_LABEL[stages[i].dataset.k]);
+      await sleep(900);
+      stages[i].classList.remove("active");stages[i].classList.add("done");stages[i].querySelector(".st").textContent=t("stDone");
     }
-    if(!S.live&&!S.data.findings.some(function(x){return x.host==="shop.acme.com"})){
-      S.data.findings.unshift({host:"shop.acme.com",vuln_type:"SSTI",severity:"critical",cvss_score:9.1,
-        sources:"nuclei,strix",confirmed_by_strix:true,status:"needs_review"});
+    if(!S.data.findings.some(function(x){return x.id===996})){
+      S.data.findings.unshift({id:996,host:"dvwa",endpoint:"/vulnerabilities/exec/",vuln_type:"Remote OS Command Injection",
+        severity:"critical",cvss_score:9.8,sources:"zap",confirmed_by_strix:false,status:"needs_review",
+        evidence:"param=ip · ZAP active scan (تجريبي)"});
       S.data.hosts.total++;S.data.hosts.live++;S.data.hosts.inScope++;
       renderTiles();renderDonut();renderFindings(S.data.findings,true);renderInsight();
     }
-    toast(S.live?"أُطلقت السلسلة على الـ worker":"اكتملت السلسلة — نتيجة جديدة");
-    btn.disabled=false;btn.textContent="تشغيل السلسلة";running=false;
+    toast(t("tComplete",{n:S.data.findings.length}));
   }
-  function toast(msg,warn){var t=$("#toast");t.textContent=msg;t.className=warn?"warn show":"show";
-    setTimeout(function(){t.className=warn?"warn":""},3000)}
+  function toast(msg,warn){var t2=$("#toast");t2.textContent=msg;t2.className=warn?"warn show":"show";
+    setTimeout(function(){t2.className=warn?"warn":""},3200)}
 
   function particles(){
     var cv=$("#pipeCanvas"),ctx=cv.getContext("2d"),pts=[],raf;
@@ -554,7 +930,148 @@
       pts.forEach(function(p){p.x=Math.min(p.x,rr.width);p.y=Math.min(p.y,rr.height)});if(!RM)draw()});
   }
 
-  $("#runBtn").addEventListener("click",runPipeline);
+  /* ── الأحداث ─────────────────────────────────────────────────── */
+  $("#langBtn").addEventListener("click",function(){
+    LANG=LANG==="ar"?"en":"ar";try{localStorage.setItem("iqscan_lang",LANG)}catch(e){}applyLang();});
+
+  $("#scopeInput").addEventListener("input",function(){var v=this.value.trim();if(v)$("#scopeKind").value=detectKind(v)});
+  $("#scopeForm").addEventListener("submit",function(e){e.preventDefault();
+    var id=$("#scopeInput").value.trim();if(!id)return;
+    if(S.live&&!S.pid){toast(t("tNeedProgram"),true);return}
+    var out=$("#scopeOut").checked,entry={kind:$("#scopeKind").value,identifier:id,in_scope:!out};
+    function added(saved){S.data.scope.push(saved||entry);renderScope();prefillSeed();
+      toast(t(out?"tScopeAddOut":"tScopeAdd",{x:id}));$("#scopeInput").value="";$("#scopeOut").checked=false;}
+    if(S.live){post("/programs/"+S.pid+"/scope",entry)
+      .then(function(a){added({id:a.id,kind:a.kind,identifier:a.identifier,in_scope:a.in_scope})})
+      .catch(function(err){toast(t("tScopeFail",{x:err}),true)});}
+    else added({id:Date.now(),kind:entry.kind,identifier:id,in_scope:!out});});
+
+  // إغلاق النوافذ بـ Escape.
+  addEventListener("keydown",function(e){if(e.key!=="Escape")return;
+    $("#authOverlay").classList.remove("show");$("#strixOverlay").classList.remove("show")});
+
+  // ── إعداد تسجيل الدخول الدائم (يُحفظ مشفّرًا) ──
+  function parseKV(str){var o={};(str||"").split(/[\n,]+/).forEach(function(p){
+    var i=p.indexOf("=");if(i>0){var k=p.slice(0,i).trim(),v=p.slice(i+1).trim();if(k)o[k]=v}});return o}
+  function fmtKV(obj){return Object.keys(obj||{}).map(function(k){return k+"="+obj[k]}).join(", ")}
+  function closeAuth(){$("#authOverlay").classList.remove("show")}
+  function openAuth(){
+    if(S.live&&S.pid){
+      j("/programs/"+S.pid+"/auth").then(function(p){
+        if(p&&p.configured){
+          $("#aLoginUrl").value=p.login_url||"";$("#aUser").value=p.username||"";
+          $("#aToken").value=p.token_field||"";$("#aFields").value=fmtKV(p.extra_fields);
+          $("#aCookies").value=fmtKV(p.extra_cookies);$("#aPass").value="";
+          $("#aPass").placeholder=p.has_password?"•••••• (محفوظة)":"••••••";
+        }
+      }).catch(function(){});
+    }
+    $("#authOverlay").classList.add("show");
+  }
+  $("#authCfgBtn").addEventListener("click",function(){
+    if(S.live&&!S.pid){toast(t("tNeedProgram"),true);return}openAuth()});
+  $("#authCancel").addEventListener("click",closeAuth);
+  $("#authOverlay").addEventListener("click",function(e){if(e.target===this)closeAuth()});
+  $("#authForm").addEventListener("submit",function(e){e.preventDefault();saveAuth()});
+  function saveAuth(){
+    var body={login_url:$("#aLoginUrl").value.trim()||null,username:$("#aUser").value.trim()||null,
+      token_field:$("#aToken").value.trim()||null,active:true,
+      extra_fields:parseKV($("#aFields").value),extra_cookies:parseKV($("#aCookies").value)};
+    var pw=$("#aPass").value;if(pw)body.password=pw;
+    if(!S.live){closeAuth();toast(t("tAuthSaved"));return}
+    req("/programs/"+S.pid+"/auth",{method:"PUT",
+      headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify(body)})
+      .then(function(){closeAuth();toast(t("tAuthSaved"))})
+      .catch(function(err){toast(t("tAuthSaveFail",{x:err}),true)});
+  }
+
+  // ── لوحة وكيل Strix ──
+  function closeStrix(){$("#strixOverlay").classList.remove("show")}
+  function openStrix(){
+    var si=$("#sxTarget");
+    if(!si.value.trim()){var inn=(S.data.scope||[]).filter(function(s){return s.in_scope});if(inn.length)si.value=inn[0].identifier}
+    var box=$("#sxPrevList");box.innerHTML="";
+    var list=S.data.findings||[];
+    if(!list.length){box.innerHTML='<div class="pv">'+esc(t("strixNoPrev"))+'</div>';}
+    else list.slice(0,30).forEach(function(f){var el=document.createElement("div");el.className="pv";
+      el.innerHTML='<b>'+esc(f.vuln_type)+'</b> @ '+esc(f.host)+(f.endpoint?(" "+esc(f.endpoint)):"");box.appendChild(el)});
+    var stt=$("#sxStatus");stt.textContent="";stt.className="sx-status";
+    $("#strixOverlay").classList.add("show");
+  }
+  $("#strixBtn").addEventListener("click",function(){
+    if(S.live&&!S.pid){toast(t("tNeedProgram"),true);return}openStrix()});
+  $("#sxCancel").addEventListener("click",closeStrix);
+  $("#strixOverlay").addEventListener("click",function(e){if(e.target===this)closeStrix()});
+  $("#sxFresh").addEventListener("click",function(){runStrix("/strix")});
+  $("#sxContinue").addEventListener("click",function(){runStrix("/strix/continue")});
+
+  async function runStrix(path){
+    if(running)return;
+    var target=($("#sxTarget").value||"").trim();
+    if(!target){toast(t("tNeedTarget"),true);return}
+    if(!/:\/\//.test(target))target="http://"+target;
+    var instruction=($("#sxPrompt").value||"").trim()||null;
+    var stt=$("#sxStatus");
+    if(!S.live){stt.className="sx-status ok";stt.textContent=t("strixDemo");return}
+    running=true;stt.className="sx-status run";stt.textContent=t("strixRunning");
+    $("#sxFresh").disabled=true;$("#sxContinue").disabled=true;
+    var q;
+    try{q=await post("/programs/"+S.pid+path,{target:target,instruction:instruction})}
+    catch(err){stt.className="sx-status err";stt.textContent=""+err;
+      $("#sxFresh").disabled=false;$("#sxContinue").disabled=false;running=false;return}
+    var t0=Date.now(),res=null;
+    for(;;){
+      await sleep(5000);
+      var secs=Math.round((Date.now()-t0)/1000);
+      stt.textContent=t("strixRunning")+" · "+secs+"s";
+      var st=await j("/tasks/"+q.task_id).catch(function(){return null});
+      if(st&&st.ready){res=st;break}
+      if(secs>3600)break;
+    }
+    var r=res&&res.result;
+    if(r&&r.status==="done"){await loadProgram(S.pid);renderFindings(S.data.findings,true);
+      stt.className="sx-status ok";stt.textContent=t("tComplete",{n:r.correlated});toast(t("tComplete",{n:r.correlated}));}
+    else if(res&&res.error){stt.className="sx-status err";stt.textContent=t("tScanFail");}
+    else{stt.className="sx-status err";stt.textContent=t("tTimeout");}
+    $("#sxFresh").disabled=false;$("#sxContinue").disabled=false;running=false;
+  }
+
+  // ── حذف كل النتائج دفعة واحدة ──
+  $("#clearAllBtn").addEventListener("click",function(){
+    if(!(S.data&&S.data.findings.length))return;
+    if(!confirm(t("confirmClearAll")))return;
+    function done(){S.data.findings=[];renderTiles();renderDonut();renderFindings([],false);renderInsight();toast(t("tCleared"))}
+    if(!S.live){done();return}
+    del("/programs/"+S.pid+"/results").then(done).catch(function(err){toast(t("tFindDelFail",{x:err}),true)});});
+
+  // ── تأكيد تلقائي نشط لكل النتائج ──
+  $("#confirmAllBtn").addEventListener("click",function(){
+    if(S.live&&!S.pid){toast(t("tNeedProgram"),true);return}runConfirm()});
+  async function runConfirm(){
+    if(running)return;
+    if(!(S.data&&S.data.findings.length)){toast(t("fEmpty"),true);return}
+    if(!S.live){toast(t("tConfirmDone",{c:0,u:0,m:S.data.findings.length}));return}
+    running=true;var btn=$("#confirmAllBtn");btn.disabled=true;toast(t("tConfirmRun"));
+    var q;
+    try{q=await post("/programs/"+S.pid+"/confirm",{})}
+    catch(err){toast(t("tAuthFail",{x:err}),true);btn.disabled=false;running=false;return}
+    var t0=Date.now(),res=null;
+    for(;;){
+      await sleep(3000);
+      $("#insight").innerHTML=t("tConfirmRun")+" · "+Math.round((Date.now()-t0)/1000)+"s";
+      var st=await j("/tasks/"+q.task_id).catch(function(){return null});
+      if(st&&st.ready){res=st;break}
+      if(Math.round((Date.now()-t0)/1000)>1800)break;
+    }
+    var r=res&&res.result;
+    if(r&&r.status==="done"){await loadProgram(S.pid);renderFindings(S.data.findings,true);
+      toast(t("tConfirmDone",{c:r.confirmed||0,u:r.unconfirmed||0,m:r.manual||0}));}
+    else if(res&&res.error){toast(t("tScanFail"),true);renderInsight();}
+    else{toast(t("tTimeout"),true);renderInsight();}
+    btn.disabled=false;running=false;
+  }
+
+  $("#runBtn").addEventListener("click",runScan);
   boot();
 })();
 </script>

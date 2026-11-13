@@ -42,5 +42,13 @@ class Settings(BaseSettings):
     # RBAC (اختياري)
     auth_enabled: bool = False
 
+    # نتائج عابرة: تُمسح النتائج/المضيفات عند كل إقلاع للـ API (لا تبقى بعد الإغلاق).
+    ephemeral_findings: bool = True
+
+    # دمج OWASP ZAP (فحص نشط عميق مُصادَق — بلا LLM)
+    zap_url: str = "http://zap:8090"
+    zap_api_key: str = "iqscan"
+    zap_timeout: int = 1800   # أقصى انتظار لاكتمال الزحف/الفحص النشط
+
 
 settings = Settings()

@@ -2,6 +2,7 @@
 
 from api.models.api_key import ApiKey
 from api.models.audit import AuditLog
+from api.models.auth_profile import AuthProfile
 from api.models.base import Base
 from api.models.correlation import CorrelatedFinding
 from api.models.credential import Credential
@@ -28,4 +29,5 @@ __all__ = [
     "FailedTask",
     "ApiKey",
     "AuditLog",
+    "AuthProfile",
 ]

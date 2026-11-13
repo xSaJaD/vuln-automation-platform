@@ -1,6 +1,6 @@
 """CRUD للبرامج ونطاقها + قراءة سجل التدقيق الخاص بالبرنامج."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -67,6 +67,27 @@ def list_scope_assets(program_id: int, db: Session = Depends(get_db)):
     if not prog:
         raise HTTPException(404, "البرنامج غير موجود")
     return prog.scope_assets
+
+
+@router.delete("/{program_id}/scope/{asset_id}", status_code=204)
+def delete_scope_asset(program_id: int, asset_id: int, db: Session = Depends(get_db)):
+    """يحذف أصلًا من نطاق البرنامج (دومين/IP مُضاف)."""
+    asset = db.get(ScopeAsset, asset_id)
+    if not asset or asset.program_id != program_id:
+        raise HTTPException(404, "الأصل غير موجود ضمن هذا البرنامج")
+    db.add(
+        AuditLog(
+            action="delete_scope",
+            target_value=asset.identifier,
+            program_id=program_id,
+            decision="removed",
+            reason=asset.kind.value,
+            actor="dashboard",
+        )
+    )
+    db.delete(asset)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.post("/{program_id}/scope/sync")

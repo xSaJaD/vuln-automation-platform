@@ -80,13 +80,26 @@ def scan_run_nuclei(program_id: int) -> dict:
 
 
 @celery_app.task(name="pipeline.run_full", base=ResilientTask, **RETRY)
-def pipeline_run_full(program_id: int, seed: str) -> dict:
-    """السلسلة الكاملة recon → scan → correlate تحت قفل تزامن."""
+def pipeline_run_full(program_id: int, seed: str, use_strix: bool = False) -> dict:
+    """السلسلة الكاملة recon → scan → (Strix اختياري) → correlate تحت قفل تزامن."""
     from api.config import settings
     from api.db import SessionLocal
     from api.models.program import Program
     from workers.locks import redis_lock
     from workers.orchestration import PipelineLocked, run_pipeline
+
+    strix_runner = None
+    if use_strix:
+        from workers.strix_cli import run_strix_cli
+
+        def strix_runner(tgt: str, instr: str | None):
+            return run_strix_cli(
+                tgt,
+                instr,
+                output_root=settings.strix_runs_dir,
+                budget=settings.strix_budget or None,
+                timeout=settings.strix_timeout,
+            )
 
     db = SessionLocal()
     try:
@@ -98,10 +111,236 @@ def pipeline_run_full(program_id: int, seed: str) -> dict:
                 db, program, seed, DEFAULT_TOOLS, DEFAULT_SCAN_TOOLS,
                 lock=redis_lock(f"pipeline:{program_id}"),
                 output_dir=settings.strix_runs_dir,
+                strix_runner=strix_runner,
             )
         except PipelineLocked as exc:
             return {"status": "skipped", "reason": str(exc)}
-        return {"status": "done", "correlated": len(correlated)}
+        return {"status": "done", "correlated": len(correlated), "used_strix": use_strix}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="authscan.run", base=ResilientTask, **RETRY)
+def authscan_run(program_id: int, targets: list[str], login: dict | None = None) -> dict:
+    """فحص مُصادَق (DAST): يسجّل دخولًا ثم يفحص روابط بارامترية بـ nuclei -dast."""
+    from api.config import settings
+    from api.db import SessionLocal
+    from api.models.audit import AuditLog
+    from api.models.program import Program
+    from workers.authscan import (
+        LoginConfig,
+        UrllibClient,
+        authenticate,
+        cookie_header,
+        run_authscan,
+    )
+    from workers.correlation_logic import correlate
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+
+        # تسجيل دخول دائم: إن لم يُمرَّر login صراحةً، نحمّل ملف المصادقة المخزَّن.
+        if login is None:
+            from api.services.auth_loader import load_login_config
+
+            login = load_login_config(db, program_id)
+
+        hdr = ""
+        if login and (login.get("url") or login.get("extra_cookies")):
+            cfg = LoginConfig(**login)
+            try:
+                hdr = cookie_header(authenticate(UrllibClient(), cfg))
+            except Exception as exc:  # فشل الدخول لا يُسقط المهمة — نكمل بلا كوكي
+                db.add(
+                    AuditLog(
+                        action="authscan_login",
+                        target_value=cfg.url or "login",
+                        program_id=program_id,
+                        decision="failed",
+                        reason=f"login failed: {exc}"[:400],
+                        actor="authscan",
+                    )
+                )
+                db.commit()
+
+        def nuclei_dast(tgts: list[str]) -> list[dict]:
+            extra = ["-dast"]
+            if hdr:
+                extra += ["-H", "Cookie: " + hdr]
+            return tools.run_nuclei(tgts, extra_args=extra, timeout=settings.strix_timeout or 1800)
+
+        run_authscan(db, program, targets, nuclei_dast)
+        correlated = correlate(db, program)
+        return {"status": "done", "correlated": len(correlated), "authenticated": bool(hdr)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="autoscan.run", base=ResilientTask, **RETRY)
+def autoscan_run(program_id: int, seed: str) -> dict:
+    """فحص ذاتي بلا LLM: دخول تلقائي (كشف النموذج) → زحف → fuzzing على المكتشَف.
+
+    لا يحتاج إدخال حقول/أهداف يدويًا — فقط رابط بداية + بيانات دخول محفوظة (اختيارية).
+    """
+    from api.config import settings
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.auth_loader import load_login_config
+    from workers.authscan import UrllibClient, cookie_header, run_authscan
+    from workers.autologin import auto_login
+    from workers.correlation_logic import correlate
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+
+        # 1) دخول تلقائي: يكتشف النموذج بنفسه (بالاعتماد المحفوظ إن وُجد).
+        login = load_login_config(db, program_id)
+        hdr = ""
+        if login and login.get("username"):
+            try:
+                cookies = auto_login(
+                    UrllibClient(),
+                    login.get("url") or seed,
+                    login["username"],
+                    login.get("password") or "",
+                )
+                cookies.update(login.get("extra_cookies") or {})
+                hdr = cookie_header(cookies)
+            except Exception:
+                hdr = ""
+        elif login and login.get("extra_cookies"):
+            hdr = cookie_header(dict(login["extra_cookies"]))
+
+        # 2) زحف لاكتشاف الصفحات والبارامترات (بالجلسة إن توفّرت).
+        try:
+            crawled = tools.run_katana(seed, cookie_header=hdr or None, depth=3)
+        except Exception:
+            crawled = []
+        if seed not in crawled:
+            crawled = [seed] + crawled
+
+        # نفضّل الروابط ذات البارامترات، ونزيل التكرار حسب (المسار + أسماء البارامترات)
+        # حتى لا نفحص نفس النقطة بقيَم مختلفة — فيتنوّع ما يُفحص ضمن الحدّ.
+        from urllib.parse import parse_qs, urlsplit
+
+        params = [u for u in crawled if "?" in u]
+        seen_keys: set = set()
+        targets: list[str] = []
+        for u in params:
+            p = urlsplit(u)
+            key = (p.path, tuple(sorted(parse_qs(p.query).keys())))
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            targets.append(u)
+        targets = (targets or crawled)[:80]
+
+        # 3) فحص DAST على المكتشَف (run_authscan يعيد التحقق من النطاق لكل هدف).
+        def nuclei_dast(tgts: list[str]) -> list[dict]:
+            extra = ["-dast"]
+            if hdr:
+                extra += ["-H", "Cookie: " + hdr]
+            return tools.run_nuclei(tgts, extra_args=extra, timeout=settings.strix_timeout or 1800)
+
+        run_authscan(db, program, targets, nuclei_dast)
+        correlated = correlate(db, program)
+        return {
+            "status": "done",
+            "correlated": len(correlated),
+            "crawled": len(crawled),
+            "scanned": len(targets),
+            "authenticated": bool(hdr),
+        }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="zap.run", base=ResilientTask, **RETRY)
+def zap_run(program_id: int, seed: str) -> dict:
+    """فحص نشط عميق مُصادَق عبر OWASP ZAP (spider + active scan) — بلا LLM."""
+    from api.config import settings
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.auth_loader import load_login_config
+    from workers.authscan import UrllibClient, cookie_header
+    from workers.autologin import auto_login
+    from workers.correlation_logic import correlate
+    from workers.zap_scan import ZapClient, run_zap_scan
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+
+        # تسجيل دخول تلقائي (يُعاد استخدام الإعداد المحفوظ) للحصول على كوكي الجلسة.
+        login = load_login_config(db, program_id)
+        hdr = ""
+        if login and login.get("username"):
+            try:
+                cookies = auto_login(
+                    UrllibClient(), login.get("url") or seed, login["username"], login.get("password") or ""
+                )
+                cookies.update(login.get("extra_cookies") or {})
+                hdr = cookie_header(cookies)
+            except Exception:
+                hdr = ""
+        elif login and login.get("extra_cookies"):
+            hdr = cookie_header(dict(login["extra_cookies"]))
+
+        zap = ZapClient(settings.zap_url, settings.zap_api_key, timeout=60)
+        try:
+            run_zap_scan(db, program, seed, zap, cookie_header=hdr, max_wait=settings.zap_timeout)
+        except Exception as exc:
+            # غالبًا ZAP غير مشغّل — نُرجِع سببًا واضحًا بدل انهيار صامت.
+            return {"status": "failed", "reason": f"ZAP غير متاح أو فشل الفحص: {str(exc)[:200]}"}
+
+        correlated = correlate(db, program)
+        return {"status": "done", "correlated": len(correlated), "authenticated": bool(hdr)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="confirm.run", base=ResilientTask, **RETRY)
+def confirm_run(program_id: int) -> dict:
+    """تأكيد نشط لكل نتائج البرنامج — يرسل طلبات تحقّق فعلية (بلا LLM)."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.auth_loader import load_login_config
+    from workers.authscan import UrllibClient, cookie_header
+    from workers.autologin import auto_login
+    from workers.confirm_logic import run_confirmations
+    from workers.confirmers import HttpProbe
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+
+        # جلسة مُصادَقة (يُعاد استخدام إعداد الدخول المحفوظ) حتى يفحص خلف الدخول.
+        login = load_login_config(db, program_id)
+        hdr = ""
+        if login and login.get("username") and login.get("url"):
+            try:
+                cookies = auto_login(
+                    UrllibClient(), login["url"], login["username"], login.get("password") or ""
+                )
+                cookies.update(login.get("extra_cookies") or {})
+                hdr = cookie_header(cookies)
+            except Exception:
+                hdr = ""
+        elif login and login.get("extra_cookies"):
+            hdr = cookie_header(dict(login["extra_cookies"]))
+
+        counts = run_confirmations(db, program, HttpProbe(cookie_header=hdr, timeout=20))
+        return {"status": "done", **counts}
     finally:
         db.close()
 
@@ -221,10 +460,16 @@ def strix_run(program_id: int, target: str, instruction: str | None = None) -> d
         if program is None:
             return {"error": "program not found", "program_id": program_id}
         scan_run, findings = run_strix_scan(db, program, target, runner, instruction=instruction)
+        # دمج حتى تظهر نتائج Strix في اللوحة مع بقية النتائج.
+        from workers.correlation_logic import correlate
+
+        correlated = correlate(db, program)
         return {
+            "status": "done",
             "scan_run_id": scan_run.id,
-            "status": scan_run.status.value,
+            "scan_status": scan_run.status.value,
             "findings": len(findings),
+            "correlated": len(correlated),
         }
     finally:
         db.close()

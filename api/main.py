@@ -16,6 +16,8 @@ from api.config import settings
 from api.db import init_db
 from api.routers import (
     auth,
+    auth_profile,
+    authscan,
     correlate,
     credentials,
     pipeline,
@@ -26,6 +28,7 @@ from api.routers import (
     strix,
     submit,
     targets,
+    tasks,
     triage,
 )
 from api.services.auth import auth_guard
@@ -40,6 +43,24 @@ async def lifespan(app: FastAPI):
         setup_logging(settings.log_level)
     # راحة تطوير — الإنتاج يطبّق المخطط عبر Alembic.
     init_db()
+    # نتائج عابرة: تُمسح نتائج/مضيفات الفحص عند كل إقلاع (تبقى البرامج والنطاق والدخول).
+    if settings.ephemeral_findings:
+        from sqlalchemy import delete
+
+        from api.db import SessionLocal
+        from api.models.correlation import CorrelatedFinding
+        from api.models.recon import Host
+        from api.models.scan import Finding, ScanRun
+
+        db = SessionLocal()
+        try:
+            for model in (CorrelatedFinding, Finding, ScanRun, Host):
+                db.execute(delete(model))
+            db.commit()
+        except Exception:
+            db.rollback()
+        finally:
+            db.close()
     yield
 
 
@@ -60,8 +81,11 @@ app.include_router(correlate.router)
 app.include_router(triage.router)
 app.include_router(report.router)
 app.include_router(pipeline.router)
+app.include_router(authscan.router)
+app.include_router(auth_profile.router)
 app.include_router(credentials.router)
 app.include_router(submit.router)
+app.include_router(tasks.router)
 app.include_router(auth.router)
 
 

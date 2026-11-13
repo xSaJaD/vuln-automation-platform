@@ -1,0 +1,23 @@
+# خدمة OWASP ZAP (فحص نشط عميق مُصادَق) — ثقيلة (ذاكرة عالية)، لذا ملف منفصل.
+#
+# التشغيل مع المنصّة و DVWA:
+#   docker compose -f docker/docker-compose.yml \
+#     -f docker/docker-compose.demo.yml \
+#     -f docker/docker-compose.zap.yml up -d --build
+#
+# الـ worker يوصل ZAP داخليًا على http://zap:8090 (ZAP_URL في .env، الافتراضي مضبوط).
+# غيّر ZAP_API_KEY في .env لمفتاح قوي في غير التجربة المحلية.
+services:
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    restart: unless-stopped
+    command: >
+      zap.sh -daemon -host 0.0.0.0 -port 8090
+      -config api.key=${ZAP_API_KEY:-iqscan}
+      -config api.addrs.addr.name=.*
+      -config api.addrs.addr.regex=true
+    expose:
+      - "8090"
+    # للوصول من المضيف للتشخيص (اختياري): فكّ التعليق.
+    # ports:
+    #   - "8090:8090"

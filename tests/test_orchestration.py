@@ -95,3 +95,39 @@ def test_derive_seeds_dedups(db_session):
     p = _program(db_session)
     # domain=example.com و wildcard=*.example.com كلاهما يؤول إلى example.com
     assert derive_seeds(p) == ["example.com"]
+
+
+def _strix_result(vulns):
+    from workers.strix_logic import StrixResult
+
+    return StrixResult(exit_code=0, vulnerabilities=vulns)
+
+
+def test_pipeline_with_strix_merges_findings(db_session):
+    """عند تمرير strix_runner تُدمج نتائج Strix مع نتائج nuclei."""
+    p = _program(db_session)
+
+    def strix_runner(target, instruction):
+        return _strix_result(
+            [{"type": "IDOR", "severity": "high", "url": f"https://{target}/account"}]
+        )
+
+    correlated = run_pipeline(
+        db_session, p, "example.com", _recon_tools(), _scan_tools(), strix_runner=strix_runner
+    )
+    types = {c.vuln_type for c in correlated}
+    assert "IDOR" in types  # نتيجة Strix حاضرة
+    assert any(c.confirmed_by_strix for c in correlated)
+
+
+def test_pipeline_strix_failure_does_not_break_chain(db_session):
+    """فشل Strix (best-effort) لا يُسقط السلسلة — نتائج nuclei تبقى."""
+    p = _program(db_session)
+
+    def bad_runner(target, instruction):
+        raise RuntimeError("LLM/Docker down")
+
+    correlated = run_pipeline(
+        db_session, p, "example.com", _recon_tools(), _scan_tools(), strix_runner=bad_runner
+    )
+    assert len(correlated) >= 1  # السلسلة أكملت بنتائج nuclei

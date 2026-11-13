@@ -97,6 +97,44 @@ def run_nuclei(
     return results
 
 
+def run_katana(
+    seed: str,
+    cookie_header: str | None = None,
+    depth: int = 3,
+    timeout: int = DEFAULT_TIMEOUT,
+    form_fill: bool = True,
+) -> list[str]:
+    """يزحف من رابط بداية ويكتشف الصفحات والروابط البارامترية (مع جلسة اختيارية).
+
+    form_fill=True يفعّل ملء النماذج تلقائيًا (-aff) وزحف الـ JavaScript (-jc) حتى
+    يكتشف بارامترات النماذج (مثل ?id=&Submit=) — يرفع تغطية الفحص كثيرًا. يُستخدم
+    على أهداف مصرّح بها فقط لأنه يُرسل النماذج.
+    """
+    seed = safe_arg(seed)
+    _require("katana")
+    cmd = ["katana", "-u", seed, "-silent", "-jsonl", "-nc", "-d", str(int(depth))]
+    if form_fill:
+        cmd += ["-jc", "-aff", "-kf", "all"]
+    if cookie_header:
+        cmd += ["-H", "Cookie: " + cookie_header]
+    proc = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=timeout, check=False
+    )
+    urls: set[str] = set()
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        ep = obj.get("endpoint") or (obj.get("request") or {}).get("endpoint") or obj.get("url")
+        if ep:
+            urls.add(ep)
+    return sorted(urls)
+
+
 def run_naabu(host: str, timeout: int = DEFAULT_TIMEOUT) -> list[int]:
     """يفحص المنافذ (connect scan لتجنّب صلاحيات raw socket)."""
     host = safe_arg(host)

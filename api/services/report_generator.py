@@ -10,6 +10,7 @@ import re
 
 from api.models.correlation import CorrelatedFinding
 from api.models.program import Program
+from api.services.poc import build_poc
 
 # وصف/أثر/إصلاح/خطوات لكل نوع ثغرة شائع.
 _VULN_INFO: dict[str, dict[str, str]] = {
@@ -94,9 +95,14 @@ def render_report(finding: CorrelatedFinding, program: Program) -> str:
 ## خطوات إعادة الإنتاج
 {info['steps']}
 
-## الدليل (PoC / Evidence)
+## الدليل (Evidence)
 ```
 {poc}
+```
+
+## أمر إعادة الإنتاج (PoC)
+```bash
+{build_poc(finding.vuln_type, finding.host, finding.endpoint, finding.evidence)}
 ```
 
 ## الأثر

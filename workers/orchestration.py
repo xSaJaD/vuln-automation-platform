@@ -44,12 +44,25 @@ def run_pipeline(
     *,
     lock: AbstractContextManager[bool] | None = None,
     output_dir: str | None = None,
+    strix_runner=None,
 ):
-    """يشغّل السلسلة الكاملة تحت قفل تزامن. يرفع PipelineLocked لو القفل محجوز."""
+    """يشغّل السلسلة الكاملة تحت قفل تزامن. يرفع PipelineLocked لو القفل محجوز.
+
+    strix_runner (اختياري): مُشغِّل Strix (target, instruction) -> StrixResult. عند
+    تمريره تُدمج نتائج Strix قبل خطوة الدمج. فشل Strix لا يُسقط السلسلة (best-effort).
+    """
     lock_cm: AbstractContextManager = lock if lock is not None else nullcontext(True)
     with lock_cm as acquired:
         if not acquired:
             raise PipelineLocked(f"pipeline قيد التشغيل بالفعل للبرنامج {program.handle}")
         run_full_recon(db, program, seed, recon_tools)
         scan_hosts(db, program, scan_tools, output_dir=output_dir)
+        if strix_runner is not None:
+            from workers.strix_logic import run_strix_scan
+
+            try:
+                run_strix_scan(db, program, seed, strix_runner)
+            except Exception:
+                # انقطاع Docker/LLM — يُسجَّل كـ scan_run فاشل، والسلسلة تكمل بنتائج nuclei.
+                db.rollback()
         return correlate(db, program)

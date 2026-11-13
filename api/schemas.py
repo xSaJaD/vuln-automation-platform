@@ -1,6 +1,8 @@
 """مخططات Pydantic للمدخلات والمخرجات."""
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
+
+from api.services.poc import build_poc
 
 
 class ProgramIn(BaseModel):
@@ -93,6 +95,29 @@ class CorrelatedFindingOut(BaseModel):
     likely_duplicate: bool
     duplicate_ref: str | None
     submitted_ref: str | None
+
+    @computed_field  # درجة ثقة بالتطابق المتقاطع + التأكيد النشط (0–100).
+    @property
+    def confidence(self) -> int:
+        ev = self.evidence or ""
+        # التأكيد النشط يتغلّب: ✔ مؤكّد فعليًا، ✖ اختُبر ولم يُؤكَّد (غالبًا كاذب).
+        if ev.startswith("✔"):
+            return 98
+        if ev.startswith("✖"):
+            return 15
+        srcs = [s for s in (self.sources or "").split(",") if s.strip()]
+        n = len(srcs)
+        score = 45 if n <= 1 else (72 if n == 2 else 90)
+        if self.confirmed_by_strix:
+            score = min(100, score + 18)        # أكّده Strix بالاستغلال
+        if self.evidence:
+            score = min(100, score + 7)         # يوجد دليل ملموس
+        return score
+
+    @computed_field  # أمر PoC جاهز ليختبره الباحث بنفسه.
+    @property
+    def poc(self) -> str:
+        return build_poc(self.vuln_type, self.host, self.endpoint, self.evidence)
 
 
 class TargetIn(BaseModel):

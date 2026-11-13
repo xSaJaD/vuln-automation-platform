@@ -2,7 +2,7 @@
 
 منصة **self-hosted** لأتمتة recon وفحص الثغرات ضمن **نطاق مصرّح به فقط**
 (برامج bug bounty على HackerOne التي وافقت على الاختبار، أو بيئات اختبار محلية
-مثل OWASP Juice Shop / DVWA)، مع دمج محرك [Strix](https://github.com/usestrix/strix)
+مثل OWASP DVWA / Juice Shop)، مع دمج محرك [Strix](https://github.com/usestrix/strix)
 بالذكاء الاصطناعي.
 
 > ⚠️ **تنبيه قانوني:** هذه الأداة تُشغّل أدوات فحص فعلية. لا تستخدمها أبدًا على أي
@@ -40,6 +40,11 @@
 - **Phase 10** — **لوحة التحكم (IQScan)**: واجهة ويب احترافية بموشن جرافيك
   (خط أنابيب متحرّك، رادار recon، مخطط خطورة) يخدمها FastAPI على `/dashboard`،
   تتصل بالـ API مباشرة. افتح `http://localhost:8000/` بعد التشغيل.
+  **تحكّم كامل من اللوحة بلا تيرمنال:** إنشاء برنامج، تعريف النطاق (مع حذف أي نطاق)،
+  إدخال الهدف وتشغيل الفحص، **متابعة حيّة للمهمة حتى تكتمل** (عبر `GET /tasks/{id}`)،
+  ثم عرض **اسم كل ثغرة مكتشفة/مشكوك بها** مع تفاصيلها، وأزرار تأكيد/تقرير/حذف لكل نتيجة.
+  إضافات: **تبديل اللغة عربي/إنكليزي**، خط عربي أنيق (Tajawal)، و**مفتاح «فحص بـ Strix»**
+  (عند إطفائه يفحص nuclei فقط ولا يمرّ الموشن جرافيك على مرحلة Strix).
 - **Phase 11** — **الأمان وإدارة الأسرار**: تشفير الحقول الحسّاسة (Fernet)،
   تحديد المعدّل على الـ API، وفحص تسريب الأسرار (gitleaks) + checklist أمني.
   الأسرار من البيئة فقط. انظر `docs/SECURITY.md`.
@@ -69,6 +74,7 @@
 | GET | `/programs` · `/programs/{id}` | قائمة / تفاصيل |
 | POST | `/programs/{id}/scope` | إضافة asset للنطاق (in/out of scope) |
 | GET | `/programs/{id}/scope` | قائمة النطاق |
+| DELETE | `/programs/{id}/scope/{asset_id}` | حذف أصل من النطاق |
 | POST | `/programs/{id}/scope/sync` | مزامنة النطاق من HackerOne |
 | GET | `/programs/{id}/audit` | سجل تدقيق قرارات النطاق |
 | POST | `/targets` | إضافة هدف — **يمر عبر Scope Gatekeeper** |
@@ -80,11 +86,19 @@
 | GET | `/programs/{id}/findings` | قائمة النتائج الخام |
 | POST | `/programs/{id}/correlate` | دمج النتائج في findings موحّدة |
 | GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة (مع CVSS) |
+| DELETE | `/correlated/{id}` | حذف نتيجة موحّدة (مُسجَّل في audit) |
+| POST | `/programs/{id}/confirm` | **تأكيد نشط** لكل النتائج (مؤكِّدات ثغرات ويب) + ضبط الثقة |
+| DELETE | `/programs/{id}/results` | حذف كل النتائج دفعة واحدة |
 | POST | `/correlated/{id}/triage` | تغيير الحالة أو CVSS يدويًا (مُسجَّل) |
 | POST | `/correlated/{id}/report` | توليد مسودة تقرير Markdown (للمؤكَّد فقط) |
 | POST | `/programs/{id}/check-duplicates` | فحص التكرار مقابل HackerOne |
 | POST | `/correlated/{id}/submit` | إرسال لـ HackerOne (موافقة صريحة) |
-| POST | `/programs/{id}/pipeline` | تشغيل السلسلة الكاملة (recon→scan→correlate) |
+| POST | `/programs/{id}/pipeline` | تشغيل السلسلة (recon→scan→correlate)، `use_strix` اختياري |
+| POST | `/programs/{id}/authscan` | **فحص مُصادَق (DAST)**: nuclei fuzzing بالجلسة المسجّلة (بلا Strix) |
+| PUT·GET·DELETE | `/programs/{id}/auth` | **ملف مصادقة دائم** — إعداد دخول يُحفظ (كلمة المرور مشفّرة) ويُستخدم تلقائيًا |
+| POST | `/programs/{id}/autoscan` | **فحص ذاتي**: دخول تلقائي (كشف النموذج) + زحف (katana) + fuzzing — برابط بداية فقط |
+| POST | `/programs/{id}/zapscan` | **فحص عميق (OWASP ZAP)**: spider + active scan مُصادَق — يكشف ثغرات POST/الحالة |
+| GET | `/tasks/{task_id}` | حالة مهمة Celery (للمتابعة الحيّة من اللوحة) |
 | POST | `/programs/{id}/credentials` | تخزين اعتماد grey-box **مُشفّرًا** |
 | GET | `/programs/{id}/credentials` | قائمة الاعتمادات (بدون السر) |
 
@@ -106,6 +120,9 @@ python -m alembic upgrade head
 python scripts/init_env.py    # ينشئ .env ويضيف مفتاح التشفير تلقائيًا
 docker compose -f docker/docker-compose.yml up --build
 ```
+
+**تجربة كاملة على هدف محلي:** انظر `docs/RUNBOOK_DVWA.md` — من git clone حتى أول
+تقرير على OWASP DVWA.
 
 ثم تحقّق من الـ health check:
 
