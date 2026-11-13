@@ -11,7 +11,9 @@ from dataclasses import dataclass, field
 
 from api.services.html_forms import parse_page
 from api.services.scope_matching import ScopeRule, evaluate, host_of
+from api.services.secret_scan import SecretHit, scan_secrets
 from workers.js_endpoints import extract_endpoints
+from workers.sourcemap import parse_sourcemap, sourcemap_url_for
 
 MAX_PAGES = 15
 MAX_SCRIPTS = 60
@@ -33,6 +35,8 @@ class JsDiscovery:
     endpoints: list[str] = field(default_factory=list)
     scripts_read: list[str] = field(default_factory=list)
     pages_crawled: list[str] = field(default_factory=list)
+    secrets: list[SecretHit] = field(default_factory=list)
+    sourcemaps: list[str] = field(default_factory=list)
 
 
 def discover_js_endpoints(
@@ -79,6 +83,7 @@ def discover_js_endpoints(
         for inline in parsed.inline_scripts:
             for ep in extract_endpoints(inline, page):
                 endpoints.setdefault(ep, None)
+            out.secrets.extend(scan_secrets(inline, context=page))
 
         # ملفات JS الخارجية.
         for src in parsed.scripts:
@@ -95,6 +100,25 @@ def discover_js_endpoints(
             for ep in extract_endpoints(js.body, src):
                 if _scoped(ep):
                     endpoints.setdefault(ep, None)
+            out.secrets.extend(scan_secrets(js.body, context=src))
+
+            # استعادة الكود الأصلي من source map (endpoints/أسرار يفوتها المضغوط).
+            smap_url = sourcemap_url_for(src, js.body)
+            if smap_url and _scoped(smap_url) and smap_url not in seen_scripts:
+                seen_scripts.add(smap_url)
+                try:
+                    smap = fetch(smap_url)
+                except Exception:
+                    smap = None
+                if smap and smap.status_code == 200 and smap.body:
+                    parsed_map = parse_sourcemap(smap.body)
+                    if parsed_map:
+                        out.sourcemaps.append(smap_url)
+                        for content in parsed_map.contents:
+                            for ep in extract_endpoints(content, src):
+                                if _scoped(ep):
+                                    endpoints.setdefault(ep, None)
+                            out.secrets.extend(scan_secrets(content, context=smap_url))
 
         # توسّع محدود على روابط الصفحة نفسها (ضمن المضيف).
         for link in parsed.links:
@@ -102,4 +126,8 @@ def discover_js_endpoints(
                 page_q.append(link)
 
     out.endpoints = list(endpoints)
+    uniq: dict[str, SecretHit] = {}
+    for s in out.secrets:
+        uniq.setdefault(f"{s.kind}:{s.masked}", s)
+    out.secrets = list(uniq.values())
     return out

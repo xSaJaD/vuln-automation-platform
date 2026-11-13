@@ -83,6 +83,13 @@
   يربط كل شيء: يكتشف صفحة التسجيل، ينشئ حسابين، يقرأ كل JS، ثم يفحص IDOR مصادَقًا
   على الـ endpoints المكتشفة. (CAPTCHA يُكتشَف ولا يُتخطّى.)
 
+- **Phase 22** — **تطويرات عمق الفحص**: فحص **مصادَق** (nuclei بكوكيز الحساب) +
+  **DAST** على المعاملات، كشف **الأسرار** في JS، استعادة **source maps**، اكتشاف
+  **OpenAPI/GraphQL**، IDOR بـ **مقارنة الردود الثلاثية** (بلا marker)، **تصعيد
+  صلاحيات رأسي**، فحص **معاملات متحقَّق** (XSS/SQLi/redirect/traversal) + اكتشاف
+  **معاملات مخفية**، تحقّق **OOB** عبر interactsh (واجهة)، **فحص تفاضلي** (الجديد
+  فقط)، وقياس **الدقّة** (precision/recall/F1) مقابل أهداف معروفة.
+
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
@@ -107,6 +114,11 @@
 | POST | `/programs/{id}/idor/auto` | **زحف يكتشف مراجع IDOR** للحساب A ثم يفحصها بجلسة B |
 | POST | `/programs/{id}/discover-endpoints` | **قراءة كل ملفات JS واستخراج كل الـ endpoints** |
 | POST | `/programs/{id}/auth-pentest` | **سلسلة كاملة**: اكتشاف تسجيل → حساب → JS → IDOR مصادَق |
+| POST | `/programs/{id}/scan/authenticated` | فحص nuclei **مصادَق** بجلسة الحساب + DAST |
+| POST | `/programs/{id}/fuzz` | فحص معاملات متحقَّق (XSS/SQLi/redirect/traversal) + معاملات مخفية |
+| POST | `/programs/{id}/access-check` | تصعيد صلاحيات رأسي (مسار إداري بجلسة مستخدم عادي) |
+| POST | `/programs/{id}/delta` | فحص تفاضلي (الجديد فقط منذ آخر لقطة) |
+| POST | `/programs/{id}/benchmark` | قياس precision/recall/F1 مقابل ثغرات معروفة |
 | GET | `/programs/{id}/accounts` | قائمة الحسابات المُنشأة (بدون أسرار) |
 | POST | `/programs/{id}/idor` | فحص IDOR تفاضلي (مورد A يُقرأ بجلسة B) |
 | POST | `/programs/{id}/verify` | إعادة إنتاج نتائج nuclei (verified / confidence) |

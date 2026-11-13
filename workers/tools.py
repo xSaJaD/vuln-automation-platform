@@ -119,8 +119,10 @@ def nuclei_command(
     rate_per_min: int | None = None,
     template_ids: list[str] | None = None,
     extra_args: list[str] | None = None,
+    headers: dict[str, str] | None = None,
+    dast: bool = False,
 ) -> list[str]:
-    """يبني أمر nuclei. rate_per_min = حد البرنامج (ROE)؛ وإلا 50 طلب/ثانية."""
+    """يبني أمر nuclei. rate_per_min=حد البرنامج (ROE)؛ headers=فحص مصادَق؛ dast=فحص معاملات."""
     cmd = ["nuclei", "-silent", "-jsonl", "-no-color", "-retries", "2", "-timeout", "10"]
     if rate_per_min and rate_per_min > 0:
         cmd += ["-rate-limit-minute", str(int(rate_per_min))]
@@ -128,6 +130,13 @@ def nuclei_command(
         cmd += ["-rate-limit", "50"]
     if template_ids:
         cmd += ["-id", ",".join(safe_arg(t) for t in template_ids)]
+    for name, value in (headers or {}).items():
+        # ترويسات المصادقة (Cookie/Authorization) — تُمرَّر كما هي بلا سطور تحكّم.
+        if "\n" in name or "\r" in name or "\n" in value or "\r" in value:
+            raise ValueError("ترويسة تحوي محارف تحكّم")
+        cmd += ["-H", f"{name}: {value}"]
+    if dast:
+        cmd += ["-dast"]
     if extra_args:
         cmd += extra_args
     return cmd
@@ -139,15 +148,18 @@ def run_nuclei(
     timeout: int = 1800,
     rate_per_min: int | None = None,
     template_ids: list[str] | None = None,
+    headers: dict[str, str] | None = None,
+    dast: bool = False,
 ) -> list[dict]:
     """يفحص قائمة أهداف بقوالب nuclei ويرجّع النتائج الخام (JSONL مُحلَّل).
 
+    headers: فحص مصادَق (Cookie/Authorization). dast: فحص المعاملات.
     يرفع ToolError لو فشل nuclei بلا مخرجات — الفشل ليس "لا ثغرات".
     """
     _require("nuclei")
     if not targets:
         return []
-    cmd = nuclei_command(rate_per_min, template_ids, extra_args)
+    cmd = nuclei_command(rate_per_min, template_ids, extra_args, headers=headers, dast=dast)
     proc = subprocess.run(
         cmd, input="\n".join(targets), capture_output=True, text=True, timeout=timeout, check=False
     )

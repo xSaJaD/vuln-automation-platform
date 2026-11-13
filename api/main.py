@@ -19,6 +19,7 @@ from api.routers import (
     auth,
     correlate,
     credentials,
+    deepscan,
     pipeline,
     programs,
     recon,
@@ -63,6 +64,7 @@ app.include_router(report.router)
 app.include_router(pipeline.router)
 app.include_router(credentials.router)
 app.include_router(accounts.router)
+app.include_router(deepscan.router)
 app.include_router(submit.router)
 app.include_router(auth.router)
 

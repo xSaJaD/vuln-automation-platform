@@ -99,3 +99,53 @@ def make_js_fetcher():
                            final_url=str(resp.url))
 
     return fetch
+
+
+def make_spec_fetchers():
+    """يرجّع (fetch, post) لاكتشاف مواصفات API (GET + POST introspection)."""
+    from workers.api_spec import Fetched
+
+    def fetch(url: str) -> Fetched:
+        with httpx.Client(follow_redirects=True, timeout=TIMEOUT,
+                          headers={"User-Agent": USER_AGENT}) as c:
+            r = c.get(url)
+            return Fetched(r.status_code, r.text[:1000000])
+
+    def post(url: str, body: str) -> Fetched:
+        with httpx.Client(follow_redirects=False, timeout=TIMEOUT,
+                          headers={"User-Agent": USER_AGENT, "Content-Type": "application/json"}) as c:
+            r = c.post(url, content=body)
+            return Fetched(r.status_code, r.text[:200000])
+
+    return fetch, post
+
+
+def make_probe_requester(headers=None):
+    """يرجّع requester(url) -> ProbeResponse لفحص المعاملات (GET يحمل الحقن)."""
+    from workers.param_fuzz import ProbeResponse
+
+    def requester(url: str) -> ProbeResponse:
+        with httpx.Client(follow_redirects=False, timeout=TIMEOUT,
+                          headers={"User-Agent": USER_AGENT, **(headers or {})}) as c:
+            r = c.get(url)
+            return ProbeResponse(status_code=r.status_code, body=r.text[:200000],
+                                 location=r.headers.get("location", ""))
+
+    return requester
+
+
+def make_method_requester():
+    """يرجّع requester(session, url, method) -> MethodResponse لفحص التحكّم بالوصول."""
+    from workers.access_control import MethodResponse
+
+    def requester(session, url: str, method: str) -> MethodResponse:
+        headers = {"User-Agent": USER_AGENT}
+        if session and session.token:
+            headers["Authorization"] = session.token
+        cookies = session.cookies if session else {}
+        with httpx.Client(follow_redirects=False, timeout=TIMEOUT,
+                          headers=headers, cookies=cookies) as c:
+            r = c.request(method, url)
+            return MethodResponse(status_code=r.status_code, body=r.text[:50000])
+
+    return requester

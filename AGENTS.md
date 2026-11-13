@@ -77,6 +77,7 @@
 | 19 ✅ | حسابات اختبار + IDOR | إنشاء حسابين (ROE + نطاق)، فحص IDOR تفاضلي |
 | 20 ✅ | اكتشاف تلقائي + CAPTCHA | زحف يكتشف نموذج التسجيل/مراجع IDOR؛ CAPTCHA يُكتشَف لا يُتخطّى |
 | 21 ✅ | endpoints من JS + سلسلة مصادَقة | قراءة كل JS واستخراج الـ endpoints؛ auth-pentest كامل |
+| 22 ✅ | عمق الفحص | مصادَق+DAST، أسرار، source maps، OpenAPI/GraphQL، مقارنة IDOR، تصعيد صلاحيات، fuzz، delta، benchmark |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).

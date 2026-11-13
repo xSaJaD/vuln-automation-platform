@@ -10,6 +10,7 @@ from api.models.failed_task import FailedTask
 from api.models.program import AssetKind, Program, ScopeAsset
 from api.models.recon import Host
 from api.models.scan import Finding, FindingStatus, ScanRun, ScanStatus
+from api.models.snapshot import AssetSnapshot
 from api.models.target import Target, TargetStatus
 
 __all__ = [
@@ -30,4 +31,5 @@ __all__ = [
     "ApiKey",
     "AuditLog",
     "ProvisionedAccount",
+    "AssetSnapshot",
 ]

@@ -11,10 +11,12 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from api.services.scope_matching import Decision, ScopeRule, evaluate, host_of
+from api.services.similarity import is_same_resource
 
 
 @dataclass(frozen=True)
@@ -100,5 +102,66 @@ def find_idor(
                     vuln_class="idor", severity="high",
                     evidence=f"الحساب {sess.label} قرأ مورد الحساب {res_def.owner_label} "
                              f"على {host} (marker='{res_def.marker}', HTTP {other.status_code})",
+                ))
+    return findings
+
+
+_ID_IN_PATH = re.compile(r"(/)(\d+)(/|$|\?)")
+_ID_IN_QUERY = re.compile(r"([?&][\w-]*id[\w-]*=)(\d+)", re.I)
+
+
+def _baseline_url(url: str) -> str:
+    """رابط بمعرّف شبه مؤكّد عدم وجوده — لقياس رد الخطأ (baseline)."""
+    bogus = "999999999"
+    if _ID_IN_PATH.search(url):
+        return _ID_IN_PATH.sub(rf"\g<1>{bogus}\g<3>", url, count=1)
+    if _ID_IN_QUERY.search(url):
+        return _ID_IN_QUERY.sub(rf"\g<1>{bogus}", url, count=1)
+    return url.rstrip("/") + "/" + bogus
+
+
+def find_idor_compare(
+    resources: list[OwnedResource],
+    sessions: list[Session],
+    requester: Requester,
+    rules: list[ScopeRule],
+    *,
+    on_scope_block: Callable[[str, Decision], None] | None = None,
+) -> list[IdorFinding]:
+    """كشف IDOR بالمقارنة الثلاثية (رد A ~ رد B، ويختلف عن رد الخطأ) — بلا marker.
+
+    أدقّ من مطابقة النص: يعمل حتى لو لم تظهر بيانات المالك حرفيًا في الرد.
+    """
+    by_label = {s.label: s for s in sessions}
+    findings: list[IdorFinding] = []
+
+    for res_def in resources:
+        decision = evaluate(res_def.url, rules)
+        if not decision.allowed:
+            if on_scope_block:
+                on_scope_block(res_def.url, decision)
+            continue
+        owner = by_label.get(res_def.owner_label)
+        if owner is None:
+            continue
+        host = host_of(res_def.url)
+
+        owner_res = requester(owner, res_def.url)
+        if owner_res.status_code != 200:     # المالك نفسه لا يصله => لا قياس
+            continue
+        error_res = requester(owner, _baseline_url(res_def.url))
+
+        for sess in sessions:
+            if sess.label in (None, res_def.owner_label):
+                continue
+            other = requester(sess, res_def.url)
+            if other.status_code == 200 and is_same_resource(
+                owner_res.body, other.body, error_res.body
+            ):
+                findings.append(IdorFinding(
+                    url=res_def.url, owner_label=res_def.owner_label, accessor_label=sess.label,
+                    vuln_class="idor", severity="high",
+                    evidence=f"رد الحساب {sess.label} يطابق رد المالك {res_def.owner_label} "
+                             f"على {host} ويختلف عن رد الخطأ (تشابه عالٍ) — IDOR مؤكّد بالمقارنة",
                 ))
     return findings
