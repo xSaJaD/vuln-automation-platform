@@ -10,6 +10,8 @@ class ProgramIn(BaseModel):
     policy_url: str | None = None
     roe_notes: str | None = None
     rate_limit_per_min: int | None = None
+    allow_account_provisioning: bool = False
+    account_email_domain: str | None = None
 
 
 class ProgramOut(BaseModel):
@@ -22,6 +24,8 @@ class ProgramOut(BaseModel):
     active: bool
     roe_notes: str | None
     rate_limit_per_min: int | None
+    allow_account_provisioning: bool = False
+    account_email_domain: str | None = None
 
 
 class ScopeAssetIn(BaseModel):

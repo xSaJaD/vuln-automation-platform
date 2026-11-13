@@ -1,5 +1,6 @@
 """تجميع كل النماذج حتى تُعبّأ Base.metadata (مهم لـ Alembic autogenerate)."""
 
+from api.models.account import ProvisionedAccount
 from api.models.api_key import ApiKey
 from api.models.audit import AuditLog
 from api.models.base import Base
@@ -28,4 +29,5 @@ __all__ = [
     "FailedTask",
     "ApiKey",
     "AuditLog",
+    "ProvisionedAccount",
 ]

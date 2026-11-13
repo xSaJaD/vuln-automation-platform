@@ -233,6 +233,9 @@ def strix_run(program_id: int, target: str, instruction: str | None = None) -> d
         program = db.get(Program, program_id)
         if program is None:
             return {"error": "program not found", "program_id": program_id}
+        if not instruction:
+            from api.services.account_summary import strix_idor_instruction
+            instruction = strix_idor_instruction(db, program_id)
         scan_run, findings = run_strix_scan(db, program, target, runner, instruction=instruction)
         return {
             "scan_run_id": scan_run.id,
@@ -261,5 +264,50 @@ def verify_run(program_id: int) -> dict:
             return tools.run_nuclei([target], rate_per_min=rate, template_ids=[template_id])
 
         return verify_findings(db, program, rerun)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="accounts.provision", base=ResilientTask, **RETRY)
+def accounts_provision(program_id: int, recipe: dict, count: int = 2) -> dict:
+    """ينشئ حسابات اختبار (IDOR) على الهدف عبر نموذج تسجيله. ROE + نطاق إلزاميان."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import register_over_http
+    from workers.account_logic import AccountRecipe, provision_accounts
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        accts = provision_accounts(
+            db, program, AccountRecipe(**recipe), register_over_http, count=count
+        )
+        ok = [a for a in accts if a.status == "created"]
+        return {"requested": count, "created": len(ok),
+                "accounts": [{"label": a.label, "status": a.status} for a in accts]}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="idor.run", base=ResilientTask, **RETRY)
+def idor_run(program_id: int, resources: list[dict]) -> dict:
+    """يشغّل الفحص التفاضلي لـ IDOR على موارد يملكها حساب A، بجلسة الحساب B."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import make_idor_requester
+    from workers.idor_db import run_idor
+    from workers.idor_logic import OwnedResource
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        owned = [OwnedResource(**r) for r in resources]
+        scan_run, findings = run_idor(db, program, owned, make_idor_requester())
+        return {"scan_run_id": scan_run.id, "status": scan_run.status.value,
+                "outcome": scan_run.outcome, "findings": len(findings)}
     finally:
         db.close()

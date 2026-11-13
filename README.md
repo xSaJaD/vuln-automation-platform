@@ -64,6 +64,12 @@
   `rate_limit_per_min` للبرنامج على nuclei، ومرحلة **تحقق** تعيد إنتاج النتيجة
   (`verified` + `confidence: low|medium|high`). التأكيد النهائي يبقى بشريًا.
 
+- **Phase 19** — **حسابات اختبار تلقائية + فحص IDOR**: ينشئ حسابين (A و B) على
+  الهدف عبر نموذج تسجيله، يخزّن اعتمادهما **مشفّرة**، ثم يفحص IDOR تفاضليًا (مورد
+  يملكه A: هل تقرأه جلسة B؟ هل يُقرأ بلا مصادقة؟). حسابان فقط (حدّ صارم)، ومضيف
+  التسجيل يمرّ عبر الحارس، ويتطلب إقرار ROE صريح (`allow_account_provisioning`) +
+  نطاق بريد يملكه الباحث. الحسابان يُمرَّران لـ Strix تلقائيًا لفحص IDOR الموجَّه.
+
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
@@ -83,6 +89,9 @@
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
 | POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
 | POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
+| POST | `/programs/{id}/accounts/provision` | إنشاء حسابَي اختبار تلقائيًا (لـ IDOR) |
+| GET | `/programs/{id}/accounts` | قائمة الحسابات المُنشأة (بدون أسرار) |
+| POST | `/programs/{id}/idor` | فحص IDOR تفاضلي (مورد A يُقرأ بجلسة B) |
 | POST | `/programs/{id}/verify` | إعادة إنتاج نتائج nuclei (verified / confidence) |
 | GET | `/programs/{id}/scan-runs` | حالة كل تشغيل (failed/clean/inconclusive) + سبب الفشل |
 | GET | `/programs/{id}/findings` | قائمة النتائج الخام |
