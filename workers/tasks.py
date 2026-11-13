@@ -15,9 +15,19 @@ DEFAULT_TOOLS = ReconTools(
     subfinder=tools.run_subfinder,
     httpx=tools.run_httpx,
     naabu=tools.run_naabu,
+    dnsx=tools.run_dnsx,
+    httpx_ports=lambda hosts, ports: tools.run_httpx(hosts, ports=ports),
 )
 
 DEFAULT_SCAN_TOOLS = ScanTools(nuclei=tools.run_nuclei)
+
+
+def scan_tools_for(program) -> ScanTools:
+    """أدوات الفحص مع حدّ معدّل البرنامج (ROE: rate_limit_per_min) إن وُجد."""
+    rate = getattr(program, "rate_limit_per_min", None)
+    if not rate:
+        return DEFAULT_SCAN_TOOLS
+    return ScanTools(nuclei=lambda targets: tools.run_nuclei(targets, rate_per_min=rate))
 
 
 @celery_app.task(name="recon.run_full", base=ResilientTask, **RETRY)
@@ -56,7 +66,7 @@ def scan_run_nuclei(program_id: int) -> dict:
         if program is None:
             return {"error": "program not found", "program_id": program_id}
         scan_run, findings = scan_hosts(
-            db, program, DEFAULT_SCAN_TOOLS, output_dir=settings.strix_runs_dir
+            db, program, scan_tools_for(program), output_dir=settings.strix_runs_dir
         )
         sev: dict[str, int] = {}
         for f in findings:
@@ -72,6 +82,9 @@ def scan_run_nuclei(program_id: int) -> dict:
 
         return {
             "scan_run_id": scan_run.id,
+            "status": scan_run.status.value,
+            "outcome": scan_run.outcome,
+            "blocked_hosts": scan_run.blocked_hosts,
             "findings": len(findings),
             "by_severity": sev,
         }
@@ -95,7 +108,7 @@ def pipeline_run_full(program_id: int, seed: str) -> dict:
             return {"error": "program not found", "program_id": program_id}
         try:
             correlated = run_pipeline(
-                db, program, seed, DEFAULT_TOOLS, DEFAULT_SCAN_TOOLS,
+                db, program, seed, DEFAULT_TOOLS, scan_tools_for(program),
                 lock=redis_lock(f"pipeline:{program_id}"),
                 output_dir=settings.strix_runs_dir,
             )
@@ -226,5 +239,27 @@ def strix_run(program_id: int, target: str, instruction: str | None = None) -> d
             "status": scan_run.status.value,
             "findings": len(findings),
         }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="verify.run", base=ResilientTask, **RETRY)
+def verify_run(program_id: int) -> dict:
+    """يعيد إنتاج نتائج nuclei (نفس القالب على نفس الهدف) ويعلّم ما تكرّر verified."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.verify_logic import verify_findings
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        rate = program.rate_limit_per_min
+
+        def rerun(target: str, template_id: str) -> list[dict]:
+            return tools.run_nuclei([target], rate_per_min=rate, template_ids=[template_id])
+
+        return verify_findings(db, program, rerun)
     finally:
         db.close()

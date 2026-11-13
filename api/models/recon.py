@@ -27,3 +27,7 @@ class Host(Base, TimestampMixin):
     in_scope: Mapped[bool] = mapped_column(Boolean, default=False)
     # كشف الحظر: "blocked" أو "clean" (Phase 17).
     block_status: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # كل الروابط الحيّة للمضيف (تشمل المنافذ غير القياسية) — سطر لكل رابط.
+    urls: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # المضيف يحلّ فقط إلى عناوين wildcard DNS => قد يكون نطاقًا فرعيًا وهميًا.
+    dns_wildcard: Mapped[bool] = mapped_column(Boolean, default=False)

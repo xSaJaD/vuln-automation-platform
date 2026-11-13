@@ -15,11 +15,27 @@ from api.models.correlation import CorrelatedFinding
 from api.models.program import Program
 from api.models.scan import Finding, ScanRun
 from api.services.cvss import auto_cvss
+from api.services.vuln_class import classify, normalize_endpoint
 
 SEVERITY_ORDER = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
 
 
-def correlation_key(host: str | None, endpoint: str | None, vuln_type: str | None) -> str:
+def correlation_key(
+    host: str | None,
+    endpoint: str | None,
+    vuln_type: str | None,
+    vuln_class: str | None = None,
+) -> str:
+    """host | endpoint مطبَّع (بدون قيم query) | صنف الثغرة الموحّد.
+
+    الصنف الموحّد يجعل `sql-injection` (nuclei) و `SQL Injection` (Strix) مفتاحًا واحدًا.
+    """
+    cls = (vuln_class or "").strip().lower() or classify(vuln_type)[0]
+    return "|".join([(host or "").strip().lower(), normalize_endpoint(endpoint), cls])[:600]
+
+
+def _legacy_key(host: str | None, endpoint: str | None, vuln_type: str | None) -> str:
+    """مفتاح الإصدارات السابقة — لترحيل السجلات القديمة بدل تكرارها."""
     return "|".join(
         [
             (host or "").strip().lower(),
@@ -27,6 +43,13 @@ def correlation_key(host: str | None, endpoint: str | None, vuln_type: str | Non
             (vuln_type or "").strip().lower(),
         ]
     )
+
+
+def confidence_for(sources: list[str], verified: bool) -> str:
+    """high = أُعيد إنتاجه آليًا؛ medium = رصده مصدران مستقلان؛ low = مصدر واحد."""
+    if verified:
+        return "high"
+    return "medium" if len(set(sources)) >= 2 else "low"
 
 
 def _max_severity(severities: list[str]) -> str:
@@ -43,7 +66,9 @@ def correlate(db: Session, program: Program) -> list[CorrelatedFinding]:
 
     groups: dict[str, list[Finding]] = {}
     for finding in raw:
-        key = correlation_key(finding.host, finding.endpoint, finding.vuln_type)
+        key = correlation_key(
+            finding.host, finding.endpoint, finding.vuln_type, finding.vuln_class
+        )
         groups.setdefault(key, []).append(finding)
 
     results: list[CorrelatedFinding] = []
@@ -52,12 +77,26 @@ def correlate(db: Session, program: Program) -> list[CorrelatedFinding]:
         confirmed = any(i.confirmed_by_strix or i.source_tool == "strix" for i in items)
         severity = _max_severity([i.severity for i in items])
         evidence = next((i.evidence for i in items if i.evidence), None)
+        # ترتيب ثابت: الأقدم أولًا حتى لا تتبدّل حقول العرض بين تشغيل وآخر.
+        items.sort(key=lambda i: i.id or 0)
 
         cf = (
             db.query(CorrelatedFinding)
             .filter_by(program_id=program.id, correlation_key=key)
             .first()
         )
+        if cf is None:
+            # سجل قديم بمفتاح الإصدار السابق؟ رحّله (يحافظ على الحالة والـ triage).
+            for item in items:
+                legacy = _legacy_key(item.host, item.endpoint, item.vuln_type)
+                cf = (
+                    db.query(CorrelatedFinding)
+                    .filter_by(program_id=program.id, correlation_key=legacy)
+                    .first()
+                )
+                if cf is not None:
+                    cf.correlation_key = key
+                    break
         if cf is None:
             cf = CorrelatedFinding(program_id=program.id, correlation_key=key)
             db.add(cf)
@@ -70,6 +109,10 @@ def correlate(db: Session, program: Program) -> list[CorrelatedFinding]:
         cf.confirmed_by_strix = confirmed
         cf.evidence = evidence
         cf.finding_count = len(items)
+        cf.vuln_class = key.rsplit("|", 1)[-1][:100]
+        cf.cwe = next((i.cwe for i in items if i.cwe), None)
+        cf.reproduction = next((i.curl_command for i in items if i.curl_command), None)
+        cf.confidence = confidence_for(sources, bool(cf.verified))
 
         # CVSS تلقائي ما لم يكن الباحث عدّله يدويًا.
         if not cf.cvss_manual:

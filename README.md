@@ -58,6 +58,12 @@
 - **Phase 17** — **RBAC + كشف الحظر**: صلاحيات admin/viewer عبر API keys (اختياري عبر
   `AUTH_ENABLED`)، وكشف WAF — الاستجابة المحظورة تُصنَّف `inconclusive` لا `clean`.
 
+- **Phase 18** — **دقة الفحص**: فشل الأداة يُسجَّل `failed` مع السبب (ليس `clean`)،
+  فحص المنافذ غير القياسية، كشف wildcard DNS (dnsx)، تطبيع الأنواع إلى صنف موحّد + CWE
+  (فيعمل الدمج بين nuclei و Strix فعلًا)، حفظ الطلب/الاستجابة/أمر curl، تطبيق
+  `rate_limit_per_min` للبرنامج على nuclei، ومرحلة **تحقق** تعيد إنتاج النتيجة
+  (`verified` + `confidence: low|medium|high`). التأكيد النهائي يبقى بشريًا.
+
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
@@ -77,6 +83,8 @@
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
 | POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
 | POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
+| POST | `/programs/{id}/verify` | إعادة إنتاج نتائج nuclei (verified / confidence) |
+| GET | `/programs/{id}/scan-runs` | حالة كل تشغيل (failed/clean/inconclusive) + سبب الفشل |
 | GET | `/programs/{id}/findings` | قائمة النتائج الخام |
 | POST | `/programs/{id}/correlate` | دمج النتائج في findings موحّدة |
 | GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة (مع CVSS) |

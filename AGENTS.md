@@ -73,6 +73,7 @@
 | 15 ✅ | مزامنة النطاق + ROE | sync من HackerOne + تعطيل خارج النطاق |
 | 16 ✅ | فحص التكرار والإرسال | likely_duplicate + إرسال بموافقة صريحة |
 | 17 ✅ | RBAC + كشف الحظر | أدوار admin/viewer + تصنيف inconclusive |
+| 18 ✅ | دقة الفحص | الفشل ≠ clean، تطبيع CWE، أدلة كاملة، verified + confidence |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).
