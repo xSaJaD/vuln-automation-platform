@@ -13,7 +13,9 @@ from api.services.vuln_class import classify, normalize_endpoint
 
 
 def finding_key(vuln_class: str | None, host: str | None, endpoint: str | None) -> str:
-    cls = (vuln_class or "").strip().lower() or classify(vuln_class)[0]
+    # يُطبَّع الاسم دائمًا (sqli == "SQL Injection" == "generic-sqli") حتى تُقارَن
+    # نتائج أدوات مختلفة الأسماء بإنصاف.
+    cls = classify(vuln_class)[0] if (vuln_class or "").strip() else "unknown"
     ep = normalize_endpoint(endpoint) or (host or "").strip().lower()
     return f"{cls}|{ep}"
 

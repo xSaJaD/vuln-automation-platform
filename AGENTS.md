@@ -73,6 +73,8 @@
 | 15 ✅ | مزامنة النطاق + ROE | sync من HackerOne + تعطيل خارج النطاق |
 | 16 ✅ | فحص التكرار والإرسال | likely_duplicate + إرسال بموافقة صريحة |
 | 17 ✅ | RBAC + كشف الحظر | أدوار admin/viewer + تصنيف inconclusive |
+| 18–22 ✅ | عمق الفحص | دقّة، حسابات/IDOR، JS endpoints، مصادَق+DAST، أسرار، OpenAPI، benchmark |
+| 23 ✅ | توحيد + فجوات عميقة | دمج النسختين؛ interactsh، SPA headless، Stored XSS |
 | 18 ✅ | دقة الفحص | الفشل ≠ clean، تطبيع CWE، أدلة كاملة، verified + confidence |
 | 19 ✅ | حسابات اختبار + IDOR | إنشاء حسابين (ROE + نطاق)، فحص IDOR تفاضلي |
 | 20 ✅ | اكتشاف تلقائي + CAPTCHA | زحف يكتشف نموذج التسجيل/مراجع IDOR؛ CAPTCHA يُكتشَف لا يُتخطّى |

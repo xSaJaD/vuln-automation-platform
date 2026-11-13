@@ -9,6 +9,7 @@ RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest 
     && go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest \
     && go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest \
     && go install -v github.com/projectdiscovery/katana/cmd/katana@latest \
+    && go install -v github.com/projectdiscovery/interactsh/cmd/interactsh-client@latest \
     && go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 
 # ── صورة التشغيل ──
@@ -28,9 +29,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # محرك Strix (يشغّل كل فحص في sandbox خاص — يحتاج وصولًا لـ Docker عند التشغيل).
 RUN pip install --no-cache-dir strix-agent
 
+# متصفّح headless لزحف SPA (spa_crawl). ثقيل — يُبنى مرة واحدة.
+RUN pip install --no-cache-dir playwright && playwright install --with-deps chromium
+
 # ننسخ أدوات ProjectDiscovery بعد pip حتى تفوز httpx مال PD على httpx مال بايثون
 # (كلاهما /usr/local/bin/httpx — الترتيب مهم).
-COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/dnsx /go/bin/naabu /go/bin/katana /go/bin/nuclei /usr/local/bin/
+COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/dnsx /go/bin/naabu /go/bin/katana /go/bin/interactsh-client /go/bin/nuclei /usr/local/bin/
 
 # نثبّت قوالب nuclei وقت البناء حتى تكون جاهزة دائمًا (لا تُفقد عند إعادة إنشاء
 # الحاوية بـ docker compose down). يحتاج شبكة وقت البناء.

@@ -810,3 +810,91 @@ def access_check(program_id: int, label: str = "idor-b") -> dict:
         return {"scan_run_id": scan_run.id, "findings": len(findings)}
     finally:
         db.close()
+
+
+@celery_app.task(name="oob.confirm", base=ResilientTask, **RETRY)
+def oob_confirm(program_id: int, server: str | None = None, token: str | None = None) -> dict:
+    """تأكيد الثغرات العمياء (SSRF/RCE) عبر interactsh — callback = دليل قاطع.
+
+    يتطلب interactsh-client في الـ worker (ويُفضّل خادمًا خاصًا عبر server).
+    """
+    from api.db import SessionLocal
+    from api.models.correlation import CorrelatedFinding
+    from api.models.program import Program
+    from api.models.scan import FindingStatus
+    from api.services.scope_gatekeeper import rules_for
+    from api.services.scope_matching import evaluate
+    from workers.confirmers import HttpProbe, first_param
+    from workers.interactsh_client import InteractshClient
+    from workers.oob_confirm import pick_oob_confirmer
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        rules = rules_for(program)
+        rows = [
+            cf for cf in db.query(CorrelatedFinding).filter_by(program_id=program_id).all()
+            if cf.status == FindingStatus.needs_review and pick_oob_confirmer(cf.vuln_type)
+            and evaluate(cf.host, rules).allowed
+        ]
+        if not rows:
+            return {"status": "skipped", "reason": "لا نتائج عمياء (SSRF/RCE) للتأكيد"}
+
+        try:
+            client = InteractshClient(server=server, token=token)
+        except Exception as exc:
+            return {"status": "error", "reason": f"interactsh غير متاح: {exc}"}
+
+        probe = HttpProbe(timeout=20)
+        counts = {"confirmed": 0, "unconfirmed": 0}
+        try:
+            for cf in rows:
+                fn = pick_oob_confirmer(cf.vuln_type)
+                url = cf.endpoint or (f"http://{cf.host}" if "://" not in cf.host else cf.host)
+                param = first_param(cf.endpoint) or "url"
+                v = fn(probe, client, url, param)
+                if v.status == "confirmed":
+                    cf.status = FindingStatus.confirmed
+                    cf.evidence = f"✔ OOB: {v.signal}"
+                    counts["confirmed"] += 1
+                else:
+                    counts["unconfirmed"] += 1
+        finally:
+            client.close()
+        db.commit()
+        return {"status": "done", **counts}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="spa.crawl", base=ResilientTask, **RETRY)
+def spa_crawl_run(program_id: int, seed: str, label: str = "idor-a") -> dict:
+    """زحف SPA برأس متصفّح (Playwright) ويخزّن الـ endpoints المكتشَفة للفحص."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.scope_gatekeeper import rules_for
+    from workers.auth_session import auth_headers_for
+    from workers.endpoints_db import store_endpoints
+    from workers.spa_crawl import crawl_spa
+    from workers.spa_render import make_spa_renderer
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        # كوكيز الحساب (إن وُجد) حتى يزحف خلف الدخول.
+        cookies = {}
+        hdr = auth_headers_for(db, program_id, label).get("Cookie", "")
+        for part in hdr.split(";"):
+            if "=" in part:
+                k, v = part.strip().split("=", 1)
+                cookies[k] = v
+        res = crawl_spa(seed, make_spa_renderer(), rules_for(program), cookies=cookies)
+        out = store_endpoints(db, program, res.endpoints)
+        out["pages_rendered"] = len(res.pages)
+        return out
+    finally:
+        db.close()

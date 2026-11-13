@@ -84,3 +84,32 @@ def benchmark(program_id: int, payload: BenchmarkIn, db: Session = Depends(get_d
     expected = {finding_key(e.vuln_class, e.host, e.endpoint) for e in payload.expected}
     result = score(found, expected)
     return result.__dict__
+
+
+class OobIn(BaseModel):
+    server: str | None = None    # خادم interactsh خاص (يُفضّل) — وإلا الافتراضي
+    token: str | None = None
+
+
+@router.post("/programs/{program_id}/oob-confirm")
+def oob_confirm(program_id: int, payload: OobIn, db: Session = Depends(get_db)):
+    """تأكيد الثغرات العمياء (SSRF/RCE) عبر interactsh callback."""
+    _require(db, program_id)
+    task = _queue("oob.confirm", [program_id, payload.server, payload.token])
+    return {"status": "queued", "task_id": task.id}
+
+
+class SpaIn(BaseModel):
+    seed: str
+    label: str = "idor-a"
+
+
+@router.post("/programs/{program_id}/spa-crawl")
+def spa_crawl(program_id: int, payload: SpaIn, db: Session = Depends(get_db)):
+    """زحف SPA برأس متصفّح (Playwright) لاكتشاف مسارات JavaScript الديناميكية."""
+    program = _require(db, program_id)
+    from api.services.scope_gatekeeper import check_target
+    if not check_target(db, program, payload.seed, actor="spa-crawl-trigger").allowed:
+        raise HTTPException(403, "البذرة خارج النطاق")
+    task = _queue("spa.crawl", [program_id, payload.seed, payload.label])
+    return {"status": "queued", "task_id": task.id}

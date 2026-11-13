@@ -118,7 +118,6 @@ class CorrelatedFindingOut(BaseModel):
     submitted_ref: str | None
     vuln_class: str | None = None
     cwe: str | None = None
-    confidence: str = "low"
     verified: bool = False
     reproduction: str | None = None
 
