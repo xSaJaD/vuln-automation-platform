@@ -24,13 +24,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpcap0.8 \
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout=300 --retries=8 -r requirements.txt
 
 # محرك Strix (يشغّل كل فحص في sandbox خاص — يحتاج وصولًا لـ Docker عند التشغيل).
-RUN pip install --no-cache-dir strix-agent
+RUN pip install --no-cache-dir --timeout=300 --retries=8 strix-agent
 
 # متصفّح headless لزحف SPA (spa_crawl). ثقيل — يُبنى مرة واحدة.
-RUN pip install --no-cache-dir playwright && playwright install --with-deps chromium
+RUN pip install --no-cache-dir --timeout=300 --retries=8 playwright && playwright install --with-deps chromium
 
 # ننسخ أدوات ProjectDiscovery بعد pip حتى تفوز httpx مال PD على httpx مال بايثون
 # (كلاهما /usr/local/bin/httpx — الترتيب مهم).

@@ -19,6 +19,3 @@ cryptography>=43,<46
 # Dev / tests
 pytest==8.3.3
 httpx==0.27.2
-
-# زحف SPA برأس متصفّح (Phase 23) — worker فقط
-playwright==1.47.0
