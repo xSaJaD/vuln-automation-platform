@@ -58,6 +58,38 @@
 - **Phase 17** — **RBAC + كشف الحظر**: صلاحيات admin/viewer عبر API keys (اختياري عبر
   `AUTH_ENABLED`)، وكشف WAF — الاستجابة المحظورة تُصنَّف `inconclusive` لا `clean`.
 
+- **Phase 18** — **دقة الفحص**: فشل الأداة يُسجَّل `failed` مع السبب (ليس `clean`)،
+  فحص المنافذ غير القياسية، كشف wildcard DNS (dnsx)، تطبيع الأنواع إلى صنف موحّد + CWE
+  (فيعمل الدمج بين nuclei و Strix فعلًا)، حفظ الطلب/الاستجابة/أمر curl، تطبيق
+  `rate_limit_per_min` للبرنامج على nuclei، ومرحلة **تحقق** تعيد إنتاج النتيجة
+  (`verified` + `confidence: low|medium|high`). التأكيد النهائي يبقى بشريًا.
+
+- **Phase 19** — **حسابات اختبار تلقائية + فحص IDOR**: ينشئ حسابين (A و B) على
+  الهدف عبر نموذج تسجيله، يخزّن اعتمادهما **مشفّرة**، ثم يفحص IDOR تفاضليًا (مورد
+  يملكه A: هل تقرأه جلسة B؟ هل يُقرأ بلا مصادقة؟). حسابان فقط (حدّ صارم)، ومضيف
+  التسجيل يمرّ عبر الحارس، ويتطلب إقرار ROE صريح (`allow_account_provisioning`) +
+  نطاق بريد يملكه الباحث. الحسابان يُمرَّران لـ Strix تلقائيًا لفحص IDOR الموجَّه.
+
+- **Phase 20** — **اكتشاف تلقائي + كشف CAPTCHA**: يزحف الهدف فيكتشف نموذج التسجيل
+  ويبني الـ recipe تلقائيًا (مع التقاط حقول CSRF الطازجة قبل الإرسال)، ويكتشف مراجع
+  كائنات الحساب A بالزحف المصادَق فيولّد موارد IDOR تلقائيًا. **CAPTCHA يُكتشَف ولا
+  يُتخطّى** (قاعدة AGENTS §0): الإنشاء يتوقّف ويُعلَّم `captcha_blocked` ويُترك للتجهيز
+  اليدوي عبر `credentials`.
+
+- **Phase 21** — **استخراج endpoints من JS + سلسلة مصادَقة كاملة**: يقرأ كل ملفات
+  JavaScript (خارجية ومضمّنة) ويستخرج كل الـ endpoints (fetch/axios/XHR + ثوابت
+  المسارات) — فيكشف سطح هجوم تطبيقات SPA الذي يفوت الزحف العادي. الـ endpoints
+  المكتشفة ضمن النطاق تُخزَّن على المضيفات فتدخل فحص nuclei تلقائيًا. و`auth-pentest`
+  يربط كل شيء: يكتشف صفحة التسجيل، ينشئ حسابين، يقرأ كل JS، ثم يفحص IDOR مصادَقًا
+  على الـ endpoints المكتشفة. (CAPTCHA يُكتشَف ولا يُتخطّى.)
+
+- **Phase 22** — **تطويرات عمق الفحص**: فحص **مصادَق** (nuclei بكوكيز الحساب) +
+  **DAST** على المعاملات، كشف **الأسرار** في JS، استعادة **source maps**، اكتشاف
+  **OpenAPI/GraphQL**، IDOR بـ **مقارنة الردود الثلاثية** (بلا marker)، **تصعيد
+  صلاحيات رأسي**، فحص **معاملات متحقَّق** (XSS/SQLi/redirect/traversal) + اكتشاف
+  **معاملات مخفية**، تحقّق **OOB** عبر interactsh (واجهة)، **فحص تفاضلي** (الجديد
+  فقط)، وقياس **الدقّة** (precision/recall/F1) مقابل أهداف معروفة.
+
 ## نقاط الـ API الحالية
 
 | Method | Path | الوصف |
@@ -77,6 +109,20 @@
 | GET | `/programs/{id}/hosts` | قائمة المضيفات المكتشَفة |
 | POST | `/programs/{id}/scan` | تشغيل فحص nuclei على المضيفات الحيّة ضمن النطاق |
 | POST | `/programs/{id}/strix` | تشغيل محرك Strix على هدف ضمن النطاق |
+| POST | `/programs/{id}/accounts/provision` | إنشاء حسابَي اختبار (recipe يدوي) |
+| POST | `/programs/{id}/accounts/auto-provision` | **زحف يكتشف نموذج التسجيل** ثم ينشئ الحسابات |
+| POST | `/programs/{id}/idor/auto` | **زحف يكتشف مراجع IDOR** للحساب A ثم يفحصها بجلسة B |
+| POST | `/programs/{id}/discover-endpoints` | **قراءة كل ملفات JS واستخراج كل الـ endpoints** |
+| POST | `/programs/{id}/auth-pentest` | **سلسلة كاملة**: اكتشاف تسجيل → حساب → JS → IDOR مصادَق |
+| POST | `/programs/{id}/scan/authenticated` | فحص nuclei **مصادَق** بجلسة الحساب + DAST |
+| POST | `/programs/{id}/fuzz` | فحص معاملات متحقَّق (XSS/SQLi/redirect/traversal) + معاملات مخفية |
+| POST | `/programs/{id}/access-check` | تصعيد صلاحيات رأسي (مسار إداري بجلسة مستخدم عادي) |
+| POST | `/programs/{id}/delta` | فحص تفاضلي (الجديد فقط منذ آخر لقطة) |
+| POST | `/programs/{id}/benchmark` | قياس precision/recall/F1 مقابل ثغرات معروفة |
+| GET | `/programs/{id}/accounts` | قائمة الحسابات المُنشأة (بدون أسرار) |
+| POST | `/programs/{id}/idor` | فحص IDOR تفاضلي (مورد A يُقرأ بجلسة B) |
+| POST | `/programs/{id}/verify` | إعادة إنتاج نتائج nuclei (verified / confidence) |
+| GET | `/programs/{id}/scan-runs` | حالة كل تشغيل (failed/clean/inconclusive) + سبب الفشل |
 | GET | `/programs/{id}/findings` | قائمة النتائج الخام |
 | POST | `/programs/{id}/correlate` | دمج النتائج في findings موحّدة |
 | GET | `/programs/{id}/correlated` | قائمة الـ findings الموحّدة (مع CVSS) |

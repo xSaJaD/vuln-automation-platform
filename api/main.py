@@ -15,9 +15,11 @@ from api import __version__
 from api.config import settings
 from api.db import init_db
 from api.routers import (
+    accounts,
     auth,
     correlate,
     credentials,
+    deepscan,
     pipeline,
     programs,
     recon,
@@ -61,6 +63,8 @@ app.include_router(triage.router)
 app.include_router(report.router)
 app.include_router(pipeline.router)
 app.include_router(credentials.router)
+app.include_router(accounts.router)
+app.include_router(deepscan.router)
 app.include_router(submit.router)
 app.include_router(auth.router)
 

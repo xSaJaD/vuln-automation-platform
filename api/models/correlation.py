@@ -29,6 +29,13 @@ class CorrelatedFinding(Base, TimestampMixin):
     finding_count: Mapped[int] = mapped_column(Integer, default=1)
     status: Mapped[FindingStatus] = mapped_column(Enum(FindingStatus), default=FindingStatus.needs_review)
 
+    # التطبيع والثقة: verified = أُعيد إنتاجه آليًا؛ confidence = low|medium|high.
+    vuln_class: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cwe: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    confidence: Mapped[str] = mapped_column(String(10), default="low")
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
+    reproduction: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # CVSS (Phase 7) — تلقائي ما لم يُعدّله الباحث يدويًا.
     cvss_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     cvss_vector: Mapped[str | None] = mapped_column(String(100), nullable=True)

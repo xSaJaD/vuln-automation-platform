@@ -29,6 +29,11 @@ class Program(Base, TimestampMixin):
     # قواعد الاشتباك (Rules of Engagement)
     roe_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     rate_limit_per_min: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # إنشاء حسابات اختبار تلقائيًا (لـ IDOR): مُعطَّل افتراضيًا. تفعيله إقرار صريح
+    # بأن البرنامج يسمح بإنشاء حسابات اختبار (ROE). بدونه لا يُنشأ أي حساب.
+    allow_account_provisioning: Mapped[bool] = mapped_column(Boolean, default=False)
+    # نطاق بريد يملكه الباحث لاستقبال رسائل التفعيل (plus-addressing). إلزامي للإنشاء.
+    account_email_domain: Mapped[str | None] = mapped_column(String(200), nullable=True)
 
     scope_assets: Mapped[list["ScopeAsset"]] = relationship(
         back_populates="program", cascade="all, delete-orphan"

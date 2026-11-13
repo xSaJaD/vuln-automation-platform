@@ -15,9 +15,20 @@ DEFAULT_TOOLS = ReconTools(
     subfinder=tools.run_subfinder,
     httpx=tools.run_httpx,
     naabu=tools.run_naabu,
+    dnsx=tools.run_dnsx,
+    httpx_ports=lambda hosts, ports: tools.run_httpx(hosts, ports=ports),
 )
 
 DEFAULT_SCAN_TOOLS = ScanTools(nuclei=tools.run_nuclei)
+
+
+def scan_tools_for(program, headers=None, dast=False) -> ScanTools:
+    """أدوات الفحص مع حدّ معدّل البرنامج (ROE) + فحص مصادَق (headers) + فحص معاملات (dast)."""
+    rate = getattr(program, "rate_limit_per_min", None)
+    if not rate and not headers and not dast:
+        return DEFAULT_SCAN_TOOLS
+    return ScanTools(nuclei=lambda targets: tools.run_nuclei(
+        targets, rate_per_min=rate, headers=headers or None, dast=dast))
 
 
 @celery_app.task(name="recon.run_full", base=ResilientTask, **RETRY)
@@ -56,7 +67,7 @@ def scan_run_nuclei(program_id: int) -> dict:
         if program is None:
             return {"error": "program not found", "program_id": program_id}
         scan_run, findings = scan_hosts(
-            db, program, DEFAULT_SCAN_TOOLS, output_dir=settings.strix_runs_dir
+            db, program, scan_tools_for(program), output_dir=settings.strix_runs_dir
         )
         sev: dict[str, int] = {}
         for f in findings:
@@ -72,6 +83,9 @@ def scan_run_nuclei(program_id: int) -> dict:
 
         return {
             "scan_run_id": scan_run.id,
+            "status": scan_run.status.value,
+            "outcome": scan_run.outcome,
+            "blocked_hosts": scan_run.blocked_hosts,
             "findings": len(findings),
             "by_severity": sev,
         }
@@ -95,7 +109,7 @@ def pipeline_run_full(program_id: int, seed: str) -> dict:
             return {"error": "program not found", "program_id": program_id}
         try:
             correlated = run_pipeline(
-                db, program, seed, DEFAULT_TOOLS, DEFAULT_SCAN_TOOLS,
+                db, program, seed, DEFAULT_TOOLS, scan_tools_for(program),
                 lock=redis_lock(f"pipeline:{program_id}"),
                 output_dir=settings.strix_runs_dir,
             )
@@ -220,11 +234,334 @@ def strix_run(program_id: int, target: str, instruction: str | None = None) -> d
         program = db.get(Program, program_id)
         if program is None:
             return {"error": "program not found", "program_id": program_id}
+        if not instruction:
+            from api.services.account_summary import strix_idor_instruction
+            instruction = strix_idor_instruction(db, program_id)
         scan_run, findings = run_strix_scan(db, program, target, runner, instruction=instruction)
         return {
             "scan_run_id": scan_run.id,
             "status": scan_run.status.value,
             "findings": len(findings),
         }
+    finally:
+        db.close()
+
+
+@celery_app.task(name="verify.run", base=ResilientTask, **RETRY)
+def verify_run(program_id: int) -> dict:
+    """يعيد إنتاج نتائج nuclei (نفس القالب على نفس الهدف) ويعلّم ما تكرّر verified."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.verify_logic import verify_findings
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        rate = program.rate_limit_per_min
+
+        def rerun(target: str, template_id: str) -> list[dict]:
+            return tools.run_nuclei([target], rate_per_min=rate, template_ids=[template_id])
+
+        return verify_findings(db, program, rerun)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="accounts.provision", base=ResilientTask, **RETRY)
+def accounts_provision(program_id: int, recipe: dict, count: int = 2) -> dict:
+    """ينشئ حسابات اختبار (IDOR) على الهدف عبر نموذج تسجيله. ROE + نطاق إلزاميان."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import register_over_http
+    from workers.account_logic import AccountRecipe, provision_accounts
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        accts = provision_accounts(
+            db, program, AccountRecipe(**recipe), register_over_http, count=count
+        )
+        ok = [a for a in accts if a.status == "created"]
+        return {"requested": count, "created": len(ok),
+                "accounts": [{"label": a.label, "status": a.status} for a in accts]}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="idor.run", base=ResilientTask, **RETRY)
+def idor_run(program_id: int, resources: list[dict]) -> dict:
+    """يشغّل الفحص التفاضلي لـ IDOR على موارد يملكها حساب A، بجلسة الحساب B."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import make_idor_requester
+    from workers.idor_db import run_idor
+    from workers.idor_logic import OwnedResource
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        owned = [OwnedResource(**r) for r in resources]
+        scan_run, findings = run_idor(db, program, owned, make_idor_requester())
+        return {"scan_run_id": scan_run.id, "status": scan_run.status.value,
+                "outcome": scan_run.outcome, "findings": len(findings)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="accounts.discover_provision", base=ResilientTask, **RETRY)
+def accounts_discover_provision(program_id: int, seed: str, count: int = 2) -> dict:
+    """يزحف الهدف لاكتشاف نموذج التسجيل تلقائيًا ثم ينشئ الحسابات. ROE + نطاق إلزاميان.
+
+    عند كشف CAPTCHA لا يُتخطّى — يُبلَّغ ويُترك للتجهيز اليدوي.
+    """
+    from api.db import SessionLocal
+    from api.models.audit import AuditLog
+    from api.models.program import Program
+    from workers.account_http import make_page_fetcher, register_over_http
+    from workers.account_logic import provision_accounts
+    from workers.form_discovery import discover_registration
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+
+        disc = discover_registration(seed, make_page_fetcher())
+        db.add(AuditLog(action="register_form_discovery", target_value=seed,
+                        program_id=program_id,
+                        decision="allow" if disc.recipe else "deny", reason=disc.reason,
+                        actor="discover"))
+        db.commit()
+        if disc.recipe is None:
+            return {"status": "no_form", "reason": disc.reason, "captcha": disc.captcha}
+        if disc.captcha:
+            return {"status": "captcha_blocked", "provider": disc.captcha,
+                    "page": disc.page_url,
+                    "reason": "لا يُتخطّى CAPTCHA — جهّز الجلسة يدويًا عبر credentials"}
+
+        accts = provision_accounts(db, program, disc.recipe, register_over_http, count=count)
+        return {"status": "done", "register_url": disc.recipe.register_url,
+                "created": sum(1 for a in accts if a.status == "created"),
+                "accounts": [{"label": a.label, "status": a.status} for a in accts]}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="idor.auto", base=ResilientTask, **RETRY)
+def idor_auto(program_id: int, seed_urls: list[str]) -> dict:
+    """اكتشاف مراجع كائنات الحساب A بالزحف ثم فحص IDOR تفاضلي بجلسة B."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import make_idor_requester
+    from workers.idor_db import run_auto_idor
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        scan_run, findings = run_auto_idor(db, program, seed_urls, make_idor_requester())
+        return {"scan_run_id": scan_run.id, "status": scan_run.status.value,
+                "outcome": scan_run.outcome, "findings": len(findings)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="endpoints.discover_js", base=ResilientTask, **RETRY)
+def endpoints_discover_js(program_id: int, seed_urls: list[str]) -> dict:
+    """يقرأ كل ملفات JS للموقع ويستخرج كل الـ endpoints ويخزّنها للفحص."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.scope_gatekeeper import rules_for
+    from api.services.scope_matching import host_of
+    from workers.account_http import make_js_fetcher
+    from workers.endpoints_db import store_endpoints
+    from workers.js_discovery import discover_js_endpoints
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        rules = rules_for(program)
+        js = discover_js_endpoints(seed_urls, make_js_fetcher(), rules)
+
+        # مواصفات API (OpenAPI/GraphQL) — دقّة كاملة للـ endpoints.
+        from workers.account_http import make_spec_fetchers
+        from workers.api_spec import discover_api_spec
+        fetch, post = make_spec_fetchers()
+        spec = discover_api_spec(seed_urls[0], fetch, post, rules)
+        all_eps = list(dict.fromkeys(js.endpoints + [e.url for e in spec.endpoints]))
+        out = store_endpoints(db, program, all_eps)
+
+        # أسرار مكشوفة في JS => findings.
+        from workers.findings_db import persist
+        if js.secrets:
+            persist(db, program, "secret-scan", [
+                {"host": host_of(seed_urls[0]), "endpoint": s.context or None,
+                 "vuln_type": f"secret:{s.kind}", "vuln_class": "secret-exposure",
+                 "severity": s.severity, "evidence": f"{s.kind}: {s.masked}"}
+                for s in js.secrets])
+
+        if spec.graphql_introspection:
+            persist(db, program, "api-spec", [{
+                "host": host_of(spec.graphql_url or seed_urls[0]), "endpoint": spec.graphql_url,
+                "vuln_type": "graphql-introspection", "vuln_class": "info-disclosure",
+                "severity": "low", "evidence": "GraphQL introspection مفتوح — تسريب المخطّط"}])
+
+        out.update(scripts_read=len(js.scripts_read), pages_crawled=len(js.pages_crawled),
+                   secrets=len(js.secrets), sourcemaps=len(js.sourcemaps),
+                   api_spec=spec.spec_url, graphql=spec.graphql_url,
+                   api_endpoints=len(spec.endpoints))
+        return out
+    finally:
+        db.close()
+
+
+@celery_app.task(name="pentest.authenticated", base=ResilientTask, **RETRY)
+def pentest_authenticated(program_id: int, seed: str, count: int = 2) -> dict:
+    """السلسلة الكاملة: اكتشاف تسجيل → إنشاء حساب → قراءة JS → فحص IDOR مصادَق."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.scope_gatekeeper import rules_for
+    from workers.account_http import (
+        make_idor_requester,
+        make_js_fetcher,
+        make_page_fetcher,
+        register_over_http,
+    )
+    from workers.auth_pentest import run_authenticated_pentest
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        return run_authenticated_pentest(
+            db, program, seed,
+            page_fetch=make_page_fetcher(), js_fetch=make_js_fetcher(),
+            register_fn=register_over_http, idor_requester=make_idor_requester(),
+            rules=rules_for(program), count=count,
+        )
+    finally:
+        db.close()
+
+
+@celery_app.task(name="scan.authenticated", base=ResilientTask, **RETRY)
+def scan_authenticated(program_id: int, dast: bool = True, label: str = "idor-a") -> dict:
+    """فحص nuclei مصادَق بجلسة حساب مُنشأ (+ فحص معاملات dast) على مضيفات النطاق."""
+    from api.config import settings
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.auth_session import auth_headers_for
+    from workers.scan_logic import scan_hosts
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        headers = auth_headers_for(db, program_id, label)
+        scan_run, findings = scan_hosts(
+            db, program, scan_tools_for(program, headers=headers, dast=dast),
+            output_dir=settings.strix_runs_dir)
+        return {"scan_run_id": scan_run.id, "authenticated": bool(headers),
+                "dast": dast, "findings": len(findings)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="scan.delta", base=ResilientTask, **RETRY)
+def scan_delta(program_id: int) -> dict:
+    """يرصد الجديد في سطح الهجوم منذ آخر لقطة (فحص تفاضلي)."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.delta_db import snapshot_and_diff
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        return snapshot_and_diff(db, program)
+    finally:
+        db.close()
+
+
+def _program_endpoints(db, program_id):
+    """كل الروابط المكتشَفة (Host.urls) للمضيفات ضمن النطاق."""
+    from api.models.recon import Host
+    urls: list[str] = []
+    for h in db.query(Host).filter_by(program_id=program_id, in_scope=True).all():
+        urls.extend(u for u in (h.urls or "").splitlines() if u.strip())
+    return list(dict.fromkeys(urls))
+
+
+@celery_app.task(name="params.fuzz", base=ResilientTask, **RETRY)
+def params_fuzz(program_id: int, label: str = "idor-a") -> dict:
+    """فحص معاملات متحقَّق (XSS/SQLi/redirect/traversal) على الروابط ذات المعاملات."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from workers.account_http import make_probe_requester
+    from workers.auth_session import auth_headers_for
+    from workers.findings_db import persist
+    from workers.param_fuzz import discover_hidden_params, fuzz_url
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        requester = make_probe_requester(auth_headers_for(db, program_id, label))
+        rows = []
+        for url in _program_endpoints(db, program_id):
+            for f in fuzz_url(url, requester):
+                rows.append({"host": None, "endpoint": f.url, "vuln_type": f.vuln_class,
+                             "vuln_class": f.vuln_class, "severity": f.severity, "evidence": f.evidence})
+            for hidden in discover_hidden_params(url, requester):
+                rows.append({"host": None, "endpoint": url, "vuln_type": "hidden-parameter",
+                             "vuln_class": "info-disclosure", "severity": "info",
+                             "evidence": f"معامل مخفي مقبول: {hidden}"})
+        scan_run, findings = persist(db, program, "param-fuzz", rows)
+        return {"scan_run_id": scan_run.id, "findings": len(findings)}
+    finally:
+        db.close()
+
+
+@celery_app.task(name="access.check", base=ResilientTask, **RETRY)
+def access_check(program_id: int, label: str = "idor-b") -> dict:
+    """تصعيد صلاحيات رأسي: endpoints إدارية تُطلب بجلسة مستخدم عادي."""
+    from api.db import SessionLocal
+    from api.models.program import Program
+    from api.services.scope_gatekeeper import rules_for
+    from workers.access_control import find_privilege_issues
+    from workers.account_http import make_method_requester
+    from workers.findings_db import persist
+    from workers.idor_db import _load_sessions
+
+    db = SessionLocal()
+    try:
+        program = db.get(Program, program_id)
+        if program is None:
+            return {"error": "program not found", "program_id": program_id}
+        sessions = _load_sessions(db, program)
+        low = next((s for s in sessions if s.label == label), None) \
+            or next((s for s in sessions if s.label), None)
+        if low is None:
+            return {"status": "skipped", "reason": "لا حساب مُنشأ"}
+        hits = find_privilege_issues(_program_endpoints(db, program_id), low,
+                                     make_method_requester(), rules_for(program))
+        rows = [{"host": None, "endpoint": h.url, "vuln_type": h.vuln_class,
+                 "vuln_class": h.vuln_class, "severity": h.severity, "evidence": h.evidence}
+                for h in hits]
+        scan_run, findings = persist(db, program, "access-control", rows)
+        return {"scan_run_id": scan_run.id, "findings": len(findings)}
     finally:
         db.close()

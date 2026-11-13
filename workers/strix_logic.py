@@ -15,10 +15,12 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
+from api.models.audit import AuditLog
 from api.models.program import Program
 from api.models.scan import Finding, FindingStatus, ScanRun, ScanStatus
-from api.services.scope_gatekeeper import check_target
-from api.services.scope_matching import host_of
+from api.services.scope_gatekeeper import check_target, rules_for
+from api.services.scope_matching import evaluate, host_of
+from api.services.vuln_class import classify
 
 
 @dataclass
@@ -34,11 +36,15 @@ StrixRunner = Callable[[str, "str | None"], StrixResult]
 
 def _finding_from_strix(scan_run_id: int, vuln: dict) -> Finding:
     location = vuln.get("url") or vuln.get("location") or vuln.get("endpoint") or ""
+    vuln_type = str(vuln.get("type") or vuln.get("title") or vuln.get("name") or "unknown")
+    vuln_class, cwe = classify(vuln_type, vuln.get("cwe") or vuln.get("cwe_id"))
     return Finding(
         scan_run_id=scan_run_id,
         host=host_of(location) or vuln.get("host") or location,
         endpoint=location or None,
-        vuln_type=vuln.get("type") or vuln.get("title") or vuln.get("name") or "unknown",
+        vuln_type=vuln_type[:100],
+        vuln_class=vuln_class[:100],
+        cwe=cwe,
         severity=(vuln.get("severity") or "info").lower(),
         evidence=vuln.get("poc") or vuln.get("evidence") or vuln.get("description"),
         source_tool="strix",
@@ -77,19 +83,42 @@ def run_strix_scan(
 
     try:
         result = runner(target, instruction)
-    except Exception:
+    except Exception as exc:
         # انقطاع Docker/LLM أو خطأ => يُسجَّل كـ failed، لا يُعتبر "لا ثغرات".
         scan_run.status = ScanStatus.failed
+        scan_run.error = str(exc)[:2000]
         db.commit()
         raise
 
+    # Strix وكيل ذاتي قد يبتعد عن الهدف: كل نتيجة يُعاد فحص مضيفها مقابل النطاق.
+    rules = rules_for(program)
     findings: list[Finding] = []
     for vuln in result.vulnerabilities:
         finding = _finding_from_strix(scan_run.id, vuln)
+        if not finding.host:
+            finding.host = host_of(target) or target
+        elif not evaluate(finding.host, rules).allowed:
+            db.add(
+                AuditLog(
+                    action="strix_result_dropped",
+                    target_value=finding.host[:500],
+                    program_id=program.id,
+                    decision="deny",
+                    reason="نتيجة Strix على مضيف خارج النطاق",
+                    actor=actor,
+                )
+            )
+            continue
         db.add(finding)
         findings.append(finding)
 
-    # exit_code 124 = انتهت المهلة (timeout) => فشل. غير ذلك => اكتمل.
-    scan_run.status = ScanStatus.failed if result.exit_code == 124 else ScanStatus.done
+    # أي exit code غير 0 (انهيار، 124 = timeout) => فشل، وليس "لا ثغرات".
+    # النتائج الجزئية تُحفظ، لكن التشغيل لا يُعدّ مكتملًا.
+    if result.exit_code != 0:
+        scan_run.status = ScanStatus.failed
+        scan_run.error = f"strix exit code {result.exit_code}"
+    else:
+        scan_run.status = ScanStatus.done
+        scan_run.outcome = "findings" if findings else "clean"
     db.commit()
     return scan_run, findings

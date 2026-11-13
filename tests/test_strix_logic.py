@@ -39,7 +39,7 @@ def test_in_scope_target_runs_and_normalizes(db_session):
 
     def runner(target, instruction):
         called["target"] = target
-        return StrixResult(exit_code=1, vulnerabilities=[_vuln("critical")])
+        return StrixResult(exit_code=0, vulnerabilities=[_vuln("critical")])
 
     scan_run, findings = run_strix_scan(db_session, p, "https://app.example.com", runner)
 

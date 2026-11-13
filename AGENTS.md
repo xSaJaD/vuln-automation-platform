@@ -73,6 +73,11 @@
 | 15 ✅ | مزامنة النطاق + ROE | sync من HackerOne + تعطيل خارج النطاق |
 | 16 ✅ | فحص التكرار والإرسال | likely_duplicate + إرسال بموافقة صريحة |
 | 17 ✅ | RBAC + كشف الحظر | أدوار admin/viewer + تصنيف inconclusive |
+| 18 ✅ | دقة الفحص | الفشل ≠ clean، تطبيع CWE، أدلة كاملة، verified + confidence |
+| 19 ✅ | حسابات اختبار + IDOR | إنشاء حسابين (ROE + نطاق)، فحص IDOR تفاضلي |
+| 20 ✅ | اكتشاف تلقائي + CAPTCHA | زحف يكتشف نموذج التسجيل/مراجع IDOR؛ CAPTCHA يُكتشَف لا يُتخطّى |
+| 21 ✅ | endpoints من JS + سلسلة مصادَقة | قراءة كل JS واستخراج الـ endpoints؛ auth-pentest كامل |
+| 22 ✅ | عمق الفحص | مصادَق+DAST، أسرار، source maps، OpenAPI/GraphQL، مقارنة IDOR، تصعيد صلاحيات، fuzz، delta، benchmark |
 
 > **لا auto-submit بدون مراجعة بشرية.** أي إرسال لتقرير إلى HackerOne يبقى
 > مسودة تتطلب موافقة يدوية صريحة (Phase 8 / 16).

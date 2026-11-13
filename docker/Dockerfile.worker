@@ -6,6 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends libpcap-dev \
     && rm -rf /var/lib/apt/lists/*
 RUN go install -v github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest \
     && go install -v github.com/projectdiscovery/httpx/cmd/httpx@latest \
+    && go install -v github.com/projectdiscovery/dnsx/cmd/dnsx@latest \
     && go install -v github.com/projectdiscovery/naabu/v2/cmd/naabu@latest \
     && go install -v github.com/projectdiscovery/nuclei/v3/cmd/nuclei@latest
 
@@ -19,7 +20,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 RUN apt-get update && apt-get install -y --no-install-recommends libpcap0.8 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/naabu /go/bin/nuclei /usr/local/bin/
+COPY --from=tools /go/bin/subfinder /go/bin/httpx /go/bin/dnsx /go/bin/naabu /go/bin/nuclei /usr/local/bin/
 
 # nuclei ينزّل قوالبه تلقائيًا عند أول تشغيل (يحتاج شبكة). لتسريع ذلك مسبقًا
 # يمكن إلغاء تعليق السطر التالي (يتطلب شبكة وقت البناء):

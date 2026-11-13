@@ -37,6 +37,10 @@ class ScanRun(Base, TimestampMixin):
     status: Mapped[ScanStatus] = mapped_column(Enum(ScanStatus), default=ScanStatus.queued)
     # النتيجة النهائية: findings | clean | inconclusive (Phase 17).
     outcome: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    # سبب الفشل (إن فشل التشغيل) — حتى لا يُقرأ الفشل كـ "لا ثغرات".
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # مضيفات محظورة (WAF) لم تُرجِع نتائج => نتيجتها غير حاسمة (مفصولة بفواصل).
+    blocked_hosts: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Finding(Base, TimestampMixin):
@@ -52,3 +56,10 @@ class Finding(Base, TimestampMixin):
     source_tool: Mapped[str] = mapped_column(String(50))
     confirmed_by_strix: Mapped[bool] = mapped_column(Boolean, default=False)
     status: Mapped[FindingStatus] = mapped_column(Enum(FindingStatus), default=FindingStatus.needs_review)
+
+    # تطبيع النوع (للدمج بين الأدوات) + أدلة كاملة لإعادة الإنتاج.
+    vuln_class: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    cwe: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    request: Mapped[str | None] = mapped_column(Text, nullable=True)
+    response: Mapped[str | None] = mapped_column(Text, nullable=True)
+    curl_command: Mapped[str | None] = mapped_column(Text, nullable=True)
